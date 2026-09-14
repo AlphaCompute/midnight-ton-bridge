@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 case "$(uname -s)-$(uname -m)" in
  Darwin-arm64) platform=aarch64-darwin;; Darwin-x86_64) platform=x86_64-darwin;;
- Linux-x86_64) platform=x86_64-linux;; Linux-aarch64) platform=aarch64-linux;;
+ Linux-x86_64) platform=x86_64-unknown-linux-musl;; Linux-aarch64) platform=aarch64-unknown-linux-musl;;
  *) echo 'Set COMPACTC for this platform' >&2; platform=unknown;;
 esac
 compiler="${COMPACTC:-$PWD/.tools/compact/versions/0.31.1/$platform/compactc}"

@@ -69,4 +69,20 @@ test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adver
   await escrow.send(attacker.getSender(),beginCell().storeUint(0x42524641,32).storeUint(0,64).storeCoins(400).endCell());
   assert.equal(await escrow.getNumber('locked'),600n);assert.equal(await escrow.getNumber('releaseState',BigInt('0x'+receipt.toString('hex'))),1n);
   await escrow.send(attacker.getSender(),refundBody(999n));assert.equal(await wallet.getNumber('get_wallet_data'),9400n);
+  // Force the destination's uint64 balance check to reject an internal transfer.
+  // Exercise a genuine TVM downstream bounce, not just an injected callback.
+  const original=(await chain.getContract(wallet.address)).account;
+  assert(original.account?.storage.state.type==='active');const originalData=original.account.storage.state.state.data;
+  const full=(await chain.getContract(wallet.address)).account;
+  assert(full.account?.storage.state.type==='active');
+  full.account.storage.state.state.data=beginCell().storeCoins((1n<<64n)-1n).storeAddress(user.address).storeAddress(minter.address).storeRef(walletCode).storeBit(false).endCell();
+  await chain.setShardAccount(wallet.address,full);
+  const retryId=Buffer.alloc(32,44),retryDigest=releaseDigest(escrow.address,domain,retryId,100n,user.address);
+  const retryBody=releaseBody(retryId,100n,user.address,0,2,signRelease(retryDigest,keys[0]!.secretKey),signRelease(retryDigest,keys[2]!.secretKey));
+  await escrow.send(attacker.getSender(),retryBody);
+  assert.equal(await escrow.getNumber('locked'),600n);assert.equal(await escrow.getNumber('releaseState',BigInt('0x'+retryId.toString('hex'))),0n);
+  original.account.storage.state.state.data=originalData;
+  await chain.setShardAccount(wallet.address,original);
+  await escrow.send(attacker.getSender(),retryBody);
+  assert.equal(await escrow.getNumber('locked'),500n);assert.equal(await wallet.getNumber('get_wallet_data'),9500n);
 });

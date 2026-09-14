@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.tools/
+.env
+.env.*
+!.env.example
+tmp/
+output/
+.state/
+coverage/
+*.log

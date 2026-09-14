@@ -1,0 +1,117 @@
+pragma language_version 0.23;
+import CompactStandardLibrary;
+
+struct JubjubSchnorrSignature { announcement: JubjubPoint; response: Field; }
+circuit jubjubSchnorrVerify<#N>(msg: Vector<N, Field>, signature: JubjubSchnorrSignature, pk: JubjubPoint): Boolean {
+  const c = (slice<31>(upgradeFromTransient(transientHash<[Field, Field, Field, Field, Vector<N, Field>]>([jubjubPointX(signature.announcement), jubjubPointY(signature.announcement), jubjubPointX(pk), jubjubPointY(pk), msg])), 0) as Uint<248>) as Field;
+  return ecMulGenerator(signature.response) == ecAdd(signature.announcement, ecMul(pk, c));
+}
+
+// Test-asset attested bridge. Two distinct members of a fixed three-member
+// committee must authorize every inbound credit. No owner mint or reserve drain.
+export ledger domain: Bytes<32>;
+export ledger committee: Vector<3, JubjubPoint>;
+export ledger claimed: Set<Bytes<32>>;
+export ledger retired: Map<Bytes<32>, Bytes<32>>;
+export ledger circulating: Vector<2, Uint<64>>;
+export ledger reserve: Vector<2, Uint<64>>;
+export ledger shares: Map<Bytes<32>, Uint<64>>;
+export ledger totalShares: Uint<64>;
+export ledger cap: Uint<64>;
+
+witness quotient(n: Uint<248>, d: Uint<128>): Uint<64>;
+circuit divide(n: Uint<248>, d: Uint<128>): Uint<64> {
+  assert(d > 0, "division by zero");
+  const q = quotient(n, d);
+  assert(q * d <= n, "invalid quotient lower");
+  assert(n < ((q as Uint<65>) + 1) * d, "invalid quotient upper");
+  return q;
+}
+
+constructor(d: Bytes<32>, keys: Vector<3, JubjubPoint>, limit: Uint<64>) {
+  assert(disclose(limit) > 0, "zero cap");
+  assert(disclose(keys[0]) != disclose(keys[1]) && disclose(keys[1]) != disclose(keys[2]) && disclose(keys[0]) != disclose(keys[2]), "duplicate committee");
+  assert(disclose(keys[0]) != ecMulGenerator(0) && disclose(keys[1]) != ecMulGenerator(0) && disclose(keys[2]) != ecMulGenerator(0), "identity committee key");
+  domain = disclose(d);
+  committee = disclose(keys);
+  cap = disclose(limit);
+}
+
+export circuit tokenDomain(asset: Uint<8>): Bytes<32> {
+  assert(asset < 2, "unknown asset");
+  return persistentHash<Vector<2, Field>>([918273645 as Field, asset as Field]);
+}
+
+export circuit claimDigest(d: Bytes<32>, contractId: Bytes<32>, receipt: Bytes<32>, asset: Uint<8>, amount: Uint<64>, recipient: UserAddress): Bytes<32> {
+  return persistentHash<[Bytes<32>, Bytes<32>, Bytes<32>, Uint<8>, Uint<64>, UserAddress]>([d, contractId, receipt, asset, amount, recipient]);
+}
+
+export circuit claim(receipt: Bytes<32>, asset: Uint<8>, amount: Uint<64>, recipient: UserAddress,
+  a: Uint<8>, b: Uint<8>, sa: JubjubSchnorrSignature, sb: JubjubSchnorrSignature): [] {
+  assert(disclose(asset) < 2 && disclose(amount) > 0, "invalid transfer");
+  assert(disclose(a) < 3 && disclose(b) < 3 && disclose(a) < disclose(b), "invalid quorum");
+  assert(!claimed.member(disclose(receipt)), "replayed receipt");
+  const digest = claimDigest(domain, kernel.self().bytes, receipt, asset, amount, recipient);
+  assert(jubjubSchnorrVerify<1>([degradeToTransient(digest)], sa, (disclose(a) == 0 ? committee[0] : (disclose(a) == 1 ? committee[1] : committee[2]))), "invalid signature A");
+  assert(jubjubSchnorrVerify<1>([degradeToTransient(digest)], sb, (disclose(b) == 0 ? committee[0] : (disclose(b) == 1 ? committee[1] : committee[2]))), "invalid signature B");
+  assert(((disclose(asset) == 0 ? circulating[0] : circulating[1]) as Uint<128>) + (disclose(amount) as Uint<128>) <= (cap as Uint<128>), "supply cap");
+  claimed.insert(disclose(receipt));
+  circulating = disclose(asset) == 0 ? [((disclose(asset) == 0 ? circulating[0] : circulating[1]) + disclose(amount)) as Uint<64>, circulating[1]] : [circulating[0], ((disclose(asset) == 0 ? circulating[0] : circulating[1]) + disclose(amount)) as Uint<64>];
+  mintUnshieldedToken(tokenDomain(disclose(asset)), disclose(amount), right<ContractAddress, UserAddress>(disclose(recipient)));
+}
+
+// Retired coins remain permanently locked. No exported circuit can spend them:
+// pool sends are bounded by separately accounted pool reserves.
+export circuit redeem(id: Bytes<32>, asset: Uint<8>, amount: Uint<64>, tonRecipient: Bytes<32>): [] {
+  assert(disclose(asset) < 2 && disclose(amount) > 0, "invalid redemption");
+  assert(!retired.member(disclose(id)), "replayed redemption");
+  assert((disclose(asset) == 0 ? circulating[0] : circulating[1]) >= disclose(amount), "insufficient circulation");
+  receiveUnshielded(tokenType(tokenDomain(disclose(asset)), kernel.self()), disclose(amount));
+  circulating = disclose(asset) == 0 ? [((disclose(asset) == 0 ? circulating[0] : circulating[1]) - disclose(amount)) as Uint<64>, circulating[1]] : [circulating[0], ((disclose(asset) == 0 ? circulating[0] : circulating[1]) - disclose(amount)) as Uint<64>];
+  retired.insert(disclose(id), persistentHash<[Uint<8>, Uint<64>, Bytes<32>]>([disclose(asset), disclose(amount), disclose(tonRecipient)]));
+}
+
+// Constant-product WHIS/test-USD1 pool, 30 bps fee retained by LPs.
+// Bootstrap shares equal WHIS units. Initial ratio is chosen by first LP.
+export circuit addLiquidity(owner: Bytes<32>, x: Uint<64>, y: Uint<64>, minShares: Uint<64>): Uint<64> {
+  assert(disclose(x) > 0 && disclose(y) > 0, "zero liquidity");
+  const minted = totalShares == 0 ? x : divide(x * totalShares, reserve[0] as Uint<128>);
+  assert(disclose(minted) > 0 && disclose(minted) >= disclose(minShares), "share slippage");
+  if (totalShares > 0) {
+    assert(disclose(y) * reserve[0] >= disclose(x) * reserve[1], "imbalanced deposit");
+  }
+  receiveUnshielded(tokenType(tokenDomain(0), kernel.self()), disclose(x));
+  receiveUnshielded(tokenType(tokenDomain(1), kernel.self()), disclose(y));
+  reserve = [(reserve[0] + disclose(x)) as Uint<64>, (reserve[1] + disclose(y)) as Uint<64>];
+  totalShares = (totalShares + disclose(minted)) as Uint<64>;
+  const previous = shares.member(disclose(owner)) ? shares.lookup(disclose(owner)) : 0;
+  shares.insert(disclose(owner), (previous + disclose(minted)) as Uint<64>);
+  return disclose(minted);
+}
+
+export circuit swap(assetIn: Uint<8>, amount: Uint<64>, minOut: Uint<64>, recipient: UserAddress): Uint<64> {
+  assert(disclose(assetIn) < 2 && disclose(amount) > 0 && disclose(minOut) > 0, "invalid swap");
+  const other = (1 - assetIn) as Uint<8>;
+  const adjusted = (amount * 9970) as Uint<128>;
+  // Uint<248> prevents intermediate multiplication overflow.
+  const out = divide(adjusted * (disclose(assetIn) == 0 ? reserve[1] : reserve[0]), (((disclose(assetIn) == 0 ? reserve[0] : reserve[1]) * 10000) + adjusted) as Uint<128>);
+  assert(disclose(out) >= disclose(minOut) && disclose(out) < (disclose(assetIn) == 0 ? reserve[1] : reserve[0]), "swap slippage");
+  receiveUnshielded(tokenType(tokenDomain(disclose(assetIn)), kernel.self()), disclose(amount));
+  reserve = disclose(assetIn) == 0 ? [(reserve[0] + disclose(amount)) as Uint<64>, (reserve[1] - disclose(out)) as Uint<64>] : [(reserve[0] - disclose(out)) as Uint<64>, (reserve[1] + disclose(amount)) as Uint<64>];
+  sendUnshielded(tokenType(tokenDomain(disclose(other)), kernel.self()), disclose(out), right<ContractAddress, UserAddress>(disclose(recipient)));
+  return disclose(out);
+}
+
+export circuit removeLiquidity(secret: Bytes<32>, count: Uint<64>, minX: Uint<64>, minY: Uint<64>, recipient: UserAddress): [] {
+  const owner = persistentHash<Bytes<32>>(secret);
+  assert(shares.member(disclose(owner)), "unknown LP");
+  assert(disclose(count) > 0 && shares.lookup(disclose(owner)) >= disclose(count), "insufficient shares");
+  const x = divide(reserve[0] * count, totalShares as Uint<128>);
+  const y = divide(reserve[1] * count, totalShares as Uint<128>);
+  assert(disclose(x) >= disclose(minX) && disclose(y) >= disclose(minY), "withdraw slippage");
+  shares.insert(disclose(owner), (shares.lookup(disclose(owner)) - disclose(count)) as Uint<64>);
+  totalShares = (totalShares - disclose(count)) as Uint<64>;
+  reserve = [(reserve[0] - disclose(x)) as Uint<64>, (reserve[1] - disclose(y)) as Uint<64>];
+  sendUnshielded(tokenType(tokenDomain(0), kernel.self()), disclose(x), right<ContractAddress, UserAddress>(disclose(recipient)));
+  sendUnshielded(tokenType(tokenDomain(1), kernel.self()), disclose(y), right<ContractAddress, UserAddress>(disclose(recipient)));
+}

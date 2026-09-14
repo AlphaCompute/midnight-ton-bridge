@@ -1,0 +1,22 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {Address} from '@ton/core';
+import {BridgeClient,type BridgeConfig} from '../src/sdk.js';
+import {signClaim,verifyingKey} from '../src/midnight.js';
+import {depositId,type DepositReceipt} from '../src/receipts.js';
+const escrows:[string,string]=[new Address(0,Buffer.alloc(32,1)).toRawString(),new Address(0,Buffer.alloc(32,2)).toRawString()];
+const config:BridgeConfig={network:'local',domain:'aa'.repeat(32),midnightAddress:'bb'.repeat(32),escrows,committee:[verifyingKey(11n),verifyingKey(22n),verifyingKey(33n)]};
+test('SDK validates route, signs actual circuit digest, and rejects invalid boundaries',async()=>{
+ let calls=0;const client=new BridgeClient(config,{call:async(c,args)=>{calls++;assert.equal(c,'claim');assert.equal(args[2],100n);return 'tx-id';}});
+ const receipt:DepositReceipt={id:depositId(escrows[0],0n),network:'ton-testnet',escrow:escrows[0],sequence:'0',asset:0,amount:'100',recipient:'cc'.repeat(32),block:10,blockRoot:'source-block'};
+ const d=client.claimDigest(receipt),a={signer:0 as const,signature:signClaim(d,11n)},b={signer:2 as const,signature:signClaim(d,33n)};
+ assert.equal(await client.claim(receipt,[b,a]),'tx-id');assert.equal(calls,1);
+ await assert.rejects(client.claim(receipt,[a,a]),/distinct/);
+ await assert.rejects(client.claim({...receipt,amount:'101'},[a,b]),/invalid attestation/);
+ assert.throws(()=>client.claimDigest({...receipt,escrow:escrows[1]}),/wrong escrow/);
+ assert.throws(()=>client.depositMessage(0,0n,receipt.recipient,escrows[0],1n),/positive/);
+ assert.throws(()=>client.redeem('dd'.repeat(32),0,1n,new Address(-1,Buffer.alloc(32,1)).toRawString()),/basechain/);
+ assert.throws(()=>client.swap(0,1n,0n,receipt.recipient),/positive/);
+ assert.throws(()=>new BridgeClient({...config,escrows:[escrows[0],escrows[0]]},{call:async()=>''}),/differ/);
+ assert.equal(calls,1);
+});

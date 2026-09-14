@@ -1,0 +1,90 @@
+{
+  "name": "@alphaton/midnight-ton-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/build-assets.mjs",
+    "test": "node --import tsx --test --test-force-exit tests/*.test.ts",
+    "check": "npm run build && npm test",
+    "compile:ton": "tsx scripts/compile-ton.ts",
+    "compile:midnight": "bash scripts/compile-midnight.sh",
+    "deploy:midnight": "tsx --env-file-if-exists=.env scripts/deploy-midnight.ts",
+    "deploy:ton": "tsx --env-file-if-exists=.env scripts/deploy-ton.ts",
+    "operator": "tsx --env-file-if-exists=.env scripts/operator.ts",
+    "demo:local": "tsx --env-file-if-exists=.env scripts/demo-local.ts",
+    "reconcile": "tsx --env-file-if-exists=.env scripts/reconcile.ts",
+    "relay": "tsx --env-file-if-exists=.env scripts/relay.ts",
+    "manifest": "node scripts/manifest.mjs",
+    "validate:local": "tsx scripts/validate-local.ts",
+    "mint:ton": "tsx scripts/mint-ton.ts"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/ledger-v8": "8.1.0",
+    "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-network-id": "4.1.1",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
+    "@midnight-ntwrk/onchain-runtime-v3": "3.0.0",
+    "@midnight-ntwrk/testkit-js": "4.1.1",
+    "@noble/curves": "2.4.0",
+    "@ton/core": "0.63.1",
+    "@ton/crypto": "3.3.0",
+    "@ton/sandbox": "0.44.0",
+    "@ton/tolk-js": "1.4.2",
+    "@ton/ton": "16.3.0",
+    "pino": "10.3.1",
+    "rxjs": "7.8.2",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "@types/node": "26.5.1",
+    "@types/ws": "8.18.1",
+    "tsx": "4.23.13",
+    "typescript": "7.0.2"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./client": {
+      "types": "./dist/src/sdk.d.ts",
+      "import": "./dist/src/sdk.js"
+    },
+    "./midnight-provider": {
+      "types": "./dist/src/live-midnight.d.ts",
+      "import": "./dist/src/live-midnight.js"
+    }
+  },
+  "files": [
+    "dist/src",
+    "dist/build/midnight/contract",
+    "contracts",
+    "scripts",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "src",
+    "dist/scripts",
+    "tsconfig.json",
+    "infrastructure",
+    "compose.yaml",
+    ".env.example",
+    "NOTICE",
+    "examples/notes/*.mjs",
+    "examples/notes/README.md",
+    "examples/notes/package.json",
+    "examples/notes/env.example",
+    "examples/notes/*.html"
+  ],
+  "license": "Apache-2.0"
+}

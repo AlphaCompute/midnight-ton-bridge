@@ -1,0 +1,5 @@
+AlphaTON Midnight-TON test-asset bridge
+Copyright 2026 AlphaTON
+
+infrastructure/local-indexer.env is adapted from midnightntwrk/midnight-local-dev, Apache-2.0.
+Dependencies retain their respective licenses.

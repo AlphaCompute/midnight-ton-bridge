@@ -1,0 +1,28 @@
+[Unit]
+Description=Midnight TON bridge read-only route monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bridge
+Group=bridge
+WorkingDirectory=/opt/midnight-ton-bridge
+EnvironmentFile=/etc/midnight-ton-bridge/monitor.env
+ExecStart=/usr/bin/node /opt/midnight-ton-bridge/dist/scripts/monitor.js
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/bridge-monitor
+RuntimeDirectory=bridge-monitor
+RuntimeDirectoryMode=0700
+# Adjust to the actual private route directory. The monitor needs no wallet keys.
+InaccessiblePaths=-/var/lib/bridge/midnight-test-wallet.json -/var/lib/bridge/ton-test-wallet.json -/var/lib/bridge/demo-operators.json -/var/lib/bridge/wallet-sync.json -/var/lib/bridge/testnet-lp-secret.json -/var/lib/bridge/acton-mnemonic.txt
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

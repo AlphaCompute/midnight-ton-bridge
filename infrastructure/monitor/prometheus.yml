@@ -1,0 +1,7 @@
+scrape_configs:
+  - job_name: midnight-ton-bridge
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['127.0.0.1:9095']
+rule_files:
+  - bridge-alerts.yml

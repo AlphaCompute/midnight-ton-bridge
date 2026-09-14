@@ -201,3 +201,19 @@ node scripts/check-package.mjs tmp/pack.json
 ```
 
 Deliver the reviewed commit, source/lockfile, SDK package, hashes, deployment records stripped of secrets, test/benchmark evidence and agreed audit artifacts through the private repository. Supply the required independent-developer build, demo recording, approved review PDF/IPFS reference and written Foundation acceptance. The repository alone does not complete these external acceptance steps. Do not include the signed commercial agreement, `.state`, `.env`, wallet snapshots, LP secrets or committee keys in a software package.
+
+## Monitoring and handoff packaging
+
+The [monitoring service](docs/monitoring.md) provides persistent health checks,
+loopback HTTP health/Prometheus endpoints and alert-rule templates. It neither
+reads wallet keys nor signs or submits transactions. After building, run
+`npm run monitor` under the appointed operator's service manager.
+
+[Measured timings](docs/benchmarks.json) report the six actual public testnet
+calls without claiming throughput or an SLA. Follow [delivery packaging](docs/delivery-artifacts.md)
+to produce the source/SDK bundle, standalone starter, narrated evidence walkthrough
+and review CID. [External release inputs](docs/external-release-inputs.md) identifies
+exactly which issuer decisions, independent reviews and acceptance signatures
+still require the responsible parties.
+
+Standalone starter: [AlphaCompute/midnight-ton-bridge-starter](https://github.com/AlphaCompute/midnight-ton-bridge-starter) (private). It vendors the SDK package and can be cloned and tested without this checkout.

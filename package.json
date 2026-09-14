@@ -32,7 +32,8 @@
     "deploy:bridge-ton": "tsx --env-file-if-exists=.env scripts/deploy-bridge-ton.ts",
     "recover:standard": "tsx --env-file-if-exists=.env scripts/recover-standard.ts",
     "relay:failure": "tsx --env-file-if-exists=.env scripts/relay-failure.ts",
-    "check:route": "tsx --env-file-if-exists=.env scripts/check-route.ts"
+    "check:route": "tsx --env-file-if-exists=.env scripts/check-route.ts",
+    "monitor": "node --env-file-if-exists=.env dist/scripts/monitor.js"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",

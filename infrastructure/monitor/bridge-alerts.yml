@@ -1,0 +1,25 @@
+groups:
+  - name: midnight-ton-bridge
+    rules:
+      - alert: BridgeRouteUnhealthy
+        expr: bridge_route_healthy == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: Bridge accounting or finality check is unhealthy
+          description: Inspect route health, chain availability and unresolved journals. Do not automatically rebalance or resubmit transactions.
+      - alert: BridgeMonitorUnavailable
+        expr: up{job="midnight-ton-bridge"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Bridge monitor cannot be scraped
+      - alert: BridgeMonitorStale
+        expr: time() - bridge_route_last_check_seconds > 180
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Bridge monitor has stopped producing fresh checks

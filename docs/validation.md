@@ -7,7 +7,7 @@ Date: 2026-09-14. Scope: the full bridge implementation deployed on testnet; no 
 | Check | Result |
 | --- | --- |
 | TypeScript/build | Passed with strict types and stale-Compact-artifact guard |
-| Automated suite | 13 tests passed, zero failed; includes seeded pool trials and multiple adversarial cases per test |
+| Automated suite | 14 tests passed, zero failed; includes seeded pool trials and multiple adversarial cases per test |
 | TON | Four Tolk contracts and the two unmodified FunC reference contracts compile; TVM lock/claim/retire/release, exact refunds, replay, forged notification/bounce, low notification gas, downstream failure and successful retry pass |
 | Cryptography/arithmetic | Identity/torsion/noncanonical scalar, changed domain/contract/asset/amount/recipient, quorum, cap, replay, dishonest quotient, LP authentication, slippage and donation rejection pass |
 | Operator/persistence | Quota, equivocation, idempotent retry, stop switch, secret permissions, network isolation, pinned TON genesis and durable ambiguous-send tests pass |
@@ -84,3 +84,16 @@ pool reserves/shares. All six new TON submissions (deployment, two mints, two
 deposits and release) were reconciled by exact external-message hash. The
 existing-master planning path was separately run against these public masters,
 without issuance or broadcast.
+
+## Operational and handoff completion
+
+The monitor was run against the deployed standard route: `/healthz` returned
+healthy and Prometheus reported zero consecutive failures. Graceful stop and
+restart retained durable state. Automated tests cover restart during failures,
+stale evidence, unresolved sends and recovery. The route check now opens neither
+a wallet nor a seed; transaction journals are opened read-only.
+
+`benchmarks.json` records six actual total-call durations, with an explicit
+statement that isolated proving time and throughput have not been measured.
+The handoff and narrated-walkthrough generators package the existing finalized
+evidence. External review, publishing and acceptance are tracked separately.

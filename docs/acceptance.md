@@ -4,9 +4,9 @@ This tracks the bridge/SDK component against the supplied agreement; it does not
 
 | Deliverable | Repository evidence | Acceptance still required |
 |---|---|---|
-| Bridge specification and cross-chain integration | architecture, contracts, SDK, observer/relay scripts | Agree trusted quorum model and test-only network/asset scope |
-| Functional TON-Midnight bridge | TVM/runtime tests, local proof evidence, public testnet evidence | Local proofs and public two-chain synthetic round trip completed; Foundation demonstration acceptance remains |
-| WHIS/USD1 pools | test minters and two-asset Midnight AMM | Foundation approves synthetic test-USD1 provenance, decimals, pool count/location and seed amounts |
+| Bridge specification and cross-chain integration | architecture, contracts, SDK, observer/relay scripts | Agree trusted quorum model, approved token masters and testnet demonstration / production release criteria |
+| Functional TON-Midnight bridge | TVM/runtime tests, local proof evidence, public testnet evidence | Local proofs and public two-chain round trip completed; Foundation demonstration acceptance remains |
+| WHIS/USD1 pools | configured token masters, reference-wallet adapter and two-asset Midnight AMM | Foundation approves actual WHIS/USD1 masters, decimals, pool count/location and seed amounts; current demonstration uses valueless testnet tokens |
 | Developer SDK | versioned TypeScript package, generated bindings, config and methods | Third-party integration and release version acceptance |
 | Notes scaffold and env.example | examples/notes | Deliver separately clonable starter; third-party builds it on another machine; agree privacy interaction scope |
 | Private source and deployment scripts | this checkout and packaging tools | Tagged private GitHub delivery and Foundation access; publication terms confirmed |
@@ -23,11 +23,11 @@ This tracks the bridge/SDK component against the supplied agreement; it does not
 1. State exact source revision, supported versions, network IDs, token masters, contract addresses and trust assumptions. Show no real USD1 or confidential note data.
 2. Show token backing move into the TON escrow, the registered receipt and two independently produced attestations.
 3. Claim on Midnight; show final transaction status and increased recipient token balance. Attempt replay and wrong-recipient authorization and show rejection.
-4. Bridge both synthetic assets, seed the pool, show reserves/quote, execute a bounded swap and withdraw LP liquidity with the private LP authorization kept off screen.
+4. Bridge both configured tokens on testnet, seed the pool, show reserves/quote, execute a bounded swap and withdraw LP liquidity with the private LP authorization kept off screen.
 5. Retire tokens on Midnight; show the recorded commitment and two independent reverse attestations. Release on TON and inspect recipient jetton delivery, not merely wallet-request submission.
 6. Demonstrate restart/ambiguous-submission reconciliation and explain the exact-sender refunds and authenticated bounce recovery; explain missing-notification limits.
 7. A separate developer installs the SDK and notes scaffold using only delivered documentation. Record machine/tool versions, commands and results.
-8. Deliver source, checksums, evidence, review PDF/IPFS reference, Loom link and production recommendations; obtain written acceptance against the agreed test scope.
+8. Deliver source, checksums, evidence, review PDF/IPFS reference, Loom link and production recommendations; obtain written acceptance against the agreed bridge deliverables.
 
 ## Production roadmap
 

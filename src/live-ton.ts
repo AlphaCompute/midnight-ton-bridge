@@ -5,9 +5,9 @@ import {TonClient4,WalletContractV4} from '@ton/ton';
 import {keyPairFromSeed} from '@ton/crypto';
 import {readSecret,statePath,network} from './environment.js';
 import {Journal} from './journal.js';
-export function openTon(){
- if(network()!=='preprod')throw new Error('Live TON fixture actions require BRIDGE_NETWORK=preprod');
- const pair=keyPairFromSeed(Buffer.from(readSecret<{seed:string}>(statePath('ton-test-wallet.json')).seed,'hex'));
+export function openTon(keyFile=statePath('ton-test-wallet.json')){
+ if(network()!=='preprod')throw new Error('Live TON actions require BRIDGE_NETWORK=preprod');
+ const pair=keyPairFromSeed(Buffer.from(readSecret<{seed:string}>(keyFile).seed,'hex'));
  const wallet=WalletContractV4.create({workchain:0,publicKey:pair.publicKey}),client=new TonClient4({endpoint:process.env.TON_RPC_URL??'https://testnet-v4.tonhubapi.com'}),opened=client.open(wallet);
  return {client,wallet,opened,send:async(id:string,messages:MessageRelaxed[])=>{
   const lock=statePath('ton-wallet.lock'),fd=openSync(lock,'wx',0o600),journal=new Journal(statePath('ton-transactions.sqlite'));

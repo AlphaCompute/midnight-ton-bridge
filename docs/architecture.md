@@ -67,3 +67,16 @@ No successful local test substitutes for the later gates. Validation results and
 - [Midnight local network](https://github.com/midnightntwrk/midnight-local-dev): isolated local network service configuration. The local indexer example configuration is derived from this project.
 
 The private contract analysis is in the ignored local `output/` directory and is intentionally excluded from software distribution.
+
+## Reference-wallet integration
+
+The current `escrow-standard.tolk` adapter derives the original TEP-74 reference
+wallet layout without the legacy pending dictionary. `deploy:bridge-ton` accepts
+existing configured masters, verifies code and wallet derivation, and deploys only
+escrows. `--issue-testnet-tokens` is an explicit alternative for network validation.
+The unmodified upstream sources are in `contracts/ton/reference`.
+
+The committee observes a complete downstream failure trace before authorizing
+restoration of an exact pending transfer. An immediate wallet bounce is automatic;
+a successful recipient delivery is verified separately. See `standard-recovery.md`.
+This remains a committee bridge with trusted RPC observations, not a light client.

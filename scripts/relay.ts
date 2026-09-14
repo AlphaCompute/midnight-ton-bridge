@@ -1,3 +1,4 @@
+import {openTon} from '../src/live-ton.js';
 import {network,readSecret,statePath,stateDirectory} from '../src/environment.js';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {BridgeClient,type BridgeConfig,type ClaimAttestation} from '../src/sdk.js';
@@ -34,14 +35,8 @@ if(command==='claim'){
  if(!process.argv.includes('--send')){console.log(JSON.stringify({network:'ton-testnet',to:escrow.toRawString(),value:toNano('0.2').toString(),body:body.toBoc().toString('base64')}));}
  else{
   if(network()!=='preprod')throw new Error('live releases require BRIDGE_NETWORK=preprod');
-  const pair=keyPairFromSeed(Buffer.from(readSecret<{seed:string}>(config.walletKeyFile).seed,'hex')),wallet=WalletContractV4.create({workchain:0,publicKey:pair.publicKey});
-  const client=new TonClient4({endpoint:'https://testnet-v4.tonhubapi.com'}),opened=client.open(wallet);
-  stateDirectory();const journal=new Journal(statePath('ton-releases.sqlite')),key=`${escrow.toRawString()}:${r.id}`;
-  try{
-   if(journal.get(key))throw new Error('existing release attempt: reconcile exact wallet and jetton traces before retrying');
-   const seqno=await opened.getSeqno(),tx=wallet.createTransfer({seqno,secretKey:pair.secretKey,messages:[internal({to:escrow,value:toNano('0.2'),body})]});
-   journal.observe(key,JSON.stringify({request:r,wallet:wallet.address.toRawString(),seqno}));journal.move(key,'observed','prepared',tx.toBoc().toString('base64'),tx.hash().toString('hex'));journal.move(key,'prepared','sending');
-   await opened.send(tx);journal.move(key,'sending','submitted');console.log('Submitted; recipient delivery is not yet confirmed. Reconcile the full jetton trace.');
-  }finally{journal.close();}
+  const client=openTon(config.walletKeyFile);
+  console.log(await client.send(`release:${escrow.toRawString()}:${r.id}`,[internal({to:escrow,value:toNano('0.2'),body})]));
+  console.log('Submitted; reconcile the full jetton trace before asserting recipient delivery.');
  }
 }else throw new Error('unknown relay command');

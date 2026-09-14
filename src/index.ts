@@ -7,3 +7,6 @@ export * from './redemptions.js';
 export * from './ton-finality.js';
 export * from './ton-network.js';
 export * from './signer-policy.js';
+
+export * from './jettons.js';
+export * from './ton-recovery.js';

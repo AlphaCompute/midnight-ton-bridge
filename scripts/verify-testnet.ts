@@ -1,3 +1,4 @@
+import {referenceWallet,verifyAsset} from '../src/jettons.js';
 import {readFileSync,writeFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {Address,Cell} from '@ton/core';
@@ -25,14 +26,17 @@ const data=ledger(state.data);assert.deepEqual(data.circulating,[9900n,10000n]);
 const [retired]=[...data.retired],id=Buffer.from(retired![0]).toString('hex');verifyRedemption(state,d.pins,{id,asset:0,amount:'100',recipient:ton.wallet.address.toRawString(),transactionId:calls.at(-1).txId},[plan.assets[0].escrow,plan.assets[1].escrow]);
 const walletCode=Cell.fromBase64(JSON.parse(readFileSync('build/ton/test-wallet.json','utf8')).codeBoc64);
 for(const a of plan.assets){
+ const standard=plan.adapter==='tep74-reference',wc=standard?Cell.fromBase64(a.walletCodeBoc):walletCode,walletFor=standard?referenceWallet:jettonWallet;
+ if(standard)await verifyAsset(ton.client,a,Address.parse(a.escrow));
  const receipt=await observeTon(ton.client,{...a,confirmationDepth:3},0n),prior=e.steps.find((x:any)=>x.deposit?.asset===a.asset).deposit;
  assert.equal(receipt.id,prior.id);assert.equal(receipt.amount,'10000');assert.equal(receipt.recipient,prior.recipient);
  const head=await ton.client.getLastBlock(),block=head.last.seqno-3,escrow=Address.parse(a.escrow),expected=a.asset===0?9900n:10000n;
  assert.equal((await ton.client.runMethod(block,escrow,'locked')).reader.readBigNumber(),expected);
- assert.equal((await ton.client.runMethod(block,jettonWallet(escrow,Address.parse(a.master),walletCode).address,'get_wallet_data')).reader.readBigNumber(),expected);
+ assert.equal((await ton.client.runMethod(block,walletFor(escrow,Address.parse(a.master),wc).address,'get_wallet_data')).reader.readBigNumber(),expected);
 }
 e.delivery=await verifyJettonDelivery(ton.client,Address.parse(e.delivery.from),Address.parse(e.delivery.to),BigInt(e.delivery.queryId),100n);
 e.independentReadback={verifiedAt:new Date().toISOString(),pins:d.pins,immutable:true,collateralMatchesCirculation:true,allSixCallsFinalized:true};
-writeFileSync('docs/testnet-evidence.json',JSON.stringify(e,null,2)+'\n');
-writeFileSync('docs/testnet-deployment.json',JSON.stringify({network:'TON-testnet/Midnight-preprod',domain:d.domain,midnight:d.address,pins:d.pins,ton:plan.assets,tonVerification:read('ton-deployment-verified.json'),custody:'single development host; synthetic assets only'},null,2)+'\n');
+const prefix=plan.adapter==='tep74-reference'?'docs/standard-testnet':'docs/testnet';
+writeFileSync(prefix+'-evidence.json',JSON.stringify(e,null,2)+'\n');
+writeFileSync(prefix+'-deployment.json',JSON.stringify({network:'TON-testnet/Midnight-preprod',domain:d.domain,midnight:d.address,pins:d.pins,ton:plan.assets,tonVerification:read('ton-deployment-verified.json'),custody:'single development host; synthetic assets only'},null,2)+'\n');
 console.log('Public testnet independently re-read: six calls finalized, recipient paid, collateral and circulation match.');

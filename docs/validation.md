@@ -1,14 +1,14 @@
 # Validation record
 
-Date: 2026-09-14. Scope: synthetic test assets; no mainnet deployment or real LP capital. This record separates local verification, public testnet evidence and external acceptance.
+Date: 2026-09-14. Scope: the full bridge implementation deployed on testnet; no mainnet deployment or real LP capital. This record separates local verification, public testnet evidence and external acceptance.
 
 ## Completed engineering checks
 
 | Check | Result |
 | --- | --- |
 | TypeScript/build | Passed with strict types and stale-Compact-artifact guard |
-| Automated suite | 12 tests passed, zero failed; includes seeded pool trials and multiple adversarial cases per test |
-| TON | All three Tolk contracts compile; TVM lock/claim/retire/release, exact refunds, replay, forged notification/bounce, low notification gas, downstream failure and successful retry pass |
+| Automated suite | 13 tests passed, zero failed; includes seeded pool trials and multiple adversarial cases per test |
+| TON | Four Tolk contracts and the two unmodified FunC reference contracts compile; TVM lock/claim/retire/release, exact refunds, replay, forged notification/bounce, low notification gas, downstream failure and successful retry pass |
 | Cryptography/arithmetic | Identity/torsion/noncanonical scalar, changed domain/contract/asset/amount/recipient, quorum, cap, replay, dishonest quotient, LP authentication, slippage and donation rejection pass |
 | Operator/persistence | Quota, equivocation, idempotent retry, stop switch, secret permissions, network isolation, pinned TON genesis and durable ambiguous-send tests pass |
 | Recipient trace | Source/recipient message-hash match checked against actual Sandbox transactions; wrong source/amount rejected |
@@ -31,7 +31,7 @@ Reproduce with the README's local commands and a fresh state directory. `npm run
 
 ## Public testnet evidence
 
-TON testnet deployment and Midnight preprod deployment have been verified. The accepted route uses domain `742ebc224a2a78fba858a1044df7eb2c31350b1afdad3769d8292d270e70da52` and Midnight address `8349a4b927988e0cf9a7ed0a1fd644c38bcb4a1bea587ba66f5273b7c04eaba0`. Exact TON masters/escrows are recorded in the public deployment evidence. Earlier empty TON fixtures were superseded after the minimum-notification-gas fix; they are not the accepted route.
+TON testnet deployment and Midnight preprod deployment have been verified. The earlier legacy-wallet route uses domain `742ebc224a2a78fba858a1044df7eb2c31350b1afdad3769d8292d270e70da52` and Midnight address `8349a4b927988e0cf9a7ed0a1fd644c38bcb4a1bea587ba66f5273b7c04eaba0`. Exact TON masters/escrows are recorded in the public deployment evidence. Earlier empty TON fixtures were superseded after the minimum-notification-gas fix; they are not that validated route.
 
 The complete two-chain round trip passed on the deployed fixtures and was independently reread. `docs/testnet-evidence.json` contains all six circuit finalizations, both TON deposit receipts, the matching source/recipient message hash and a successful recipient credit. Final collateral and Midnight circulation are 9,900/10,000 units, with pool reserves and shares zero. The five TON wallet sends were also reconciled by exact external-message body hash; the separate recipient trace confirms final delivery. `docs/testnet-deployment.json` records code/config/verifier/authority pins and the exact accepted route.
 
@@ -61,3 +61,26 @@ The clean package check was performed by the implementing agent. Hosted Linux CI
 `npm run manifest` records SHA-256 hashes for source, tests, configuration, TON code and proof keys. Regenerate it after changes. The SDK package includes generated runtime bindings; prover files are rebuilt rather than bundled. Package checks exclude private agreement analysis, `.state`, `.env`, secrets and local tools.
 
 Still external: Foundation agreement on test scope/trust model/assets/pools; independent developer reproduction; specialist/independent security sign-off; agreed benchmark thresholds; narrated Loom recording; approved PDF/IPFS reference; private delivery/access and written Foundation acceptance. Continuous node operations and their SLA require separate evidence. No mainnet launch, real liquidity, IPFS upload or Loom publication has been performed by this implementation.
+
+## Standard-wallet interoperability
+
+The reference adapter is tested against the unmodified upstream FunC wallet and
+minter. The TVM test exercises deposits, release, exact-sender refunds, invalid
+asset pins, actual recipient rejection, the complete source/rejection/bounce trace,
+wrong amount/query rejection, forged evidence, restoration replay and successful
+retry. This is separate from the legacy wallet's custom callback test.
+
+The new deployment path accepts existing configured token masters. Issuing
+tokens is an explicit testnet setup option. Mainnet broadcasting is disabled
+until production asset approval, independent security review and operator
+responsibilities are resolved. This does not reduce the deliverable to mock code.
+
+The reference-wallet public round trip completed and was independently re-read on
+2026-09-14. `standard-testnet-evidence.json` records all six finalized Midnight
+calls, two observed deposits and final TON recipient delivery.
+`standard-testnet-deployment.json` records the exact route and code/configuration
+pins. Backing and circulation both finish at 9,900/10,000 base units, with zero
+pool reserves/shares. All six new TON submissions (deployment, two mints, two
+deposits and release) were reconciled by exact external-message hash. The
+existing-master planning path was separately run against these public masters,
+without issuance or broadcast.

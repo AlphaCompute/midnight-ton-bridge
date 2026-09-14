@@ -58,3 +58,17 @@ Use synthetic minters for test liquidity. Lock both assets on TON, claim represe
 On inconsistency: stop new signatures, preserve logs/snapshots, compare independent chain views, account for every in-flight transfer, and communicate through the appointed operator. On key compromise, stop the remaining signer(s); already issued signatures cannot be revoked. The fixed committee and immutable Midnight contract require a new backed route for rotation. Do not abandon collateral when migrating or shutting down.
 
 The source handover does not imply a hosted watcher, alert subscription, real liquidity contribution or indefinite service. Those require an assigned operator and a written service scope.
+
+## Current standard-wallet route
+
+Use `deploy:bridge-ton` for the current reference-wallet adapter. `deploy:ton`
+remains the historical custom-wallet integration for reproducing earlier evidence.
+Existing-master deployments verify master and wallet code/address pins. Use the
+[standard recovery procedure](standard-recovery.md) for a downstream rejection;
+the old wallet's custom failure callback does not apply to this route.
+
+Run `check:route` after settled operations and after reconciling journals. It
+compares backing and circulation and reports unresolved sends. Differences can
+represent in-flight deposits/refunds or a real accounting problem; do not repair
+them with unverified claims. Archive each route's deployment and transaction
+records, including routes still holding collateral.

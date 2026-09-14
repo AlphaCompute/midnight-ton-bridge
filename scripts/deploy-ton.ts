@@ -1,3 +1,4 @@
+import {network,readSecret,statePath,stateDirectory} from '../src/environment.js';
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {TonClient4,WalletContractV4} from '@ton/ton';
@@ -7,10 +8,11 @@ import {escrowData,TonContract} from '../src/ton.js';
 
 // Prepare is the default. --send uses an explicitly funded TESTNET wallet.
 const send=process.argv.includes('--send');
-mkdirSync('.state',{recursive:true,mode:0o700});
-const secretPath='.state/ton-test-wallet.json';
+if(network()==='mainnet'||(send&&network()!=='preprod'))throw new Error('Fixture deployment requires BRIDGE_NETWORK=preprod');
+stateDirectory();
+const secretPath=statePath('ton-test-wallet.json');
 if(!existsSync(secretPath))writeFileSync(secretPath,JSON.stringify({seed:randomBytes(32).toString('hex')}),{mode:0o600,flag:'wx'});
-const seed=JSON.parse(readFileSync(secretPath,'utf8')).seed as string;
+const seed=readSecret<{seed:string}>(secretPath).seed as string;
 const keys=keyPairFromSeed(Buffer.from(seed,'hex')),wallet=WalletContractV4.create({workchain:0,publicKey:keys.publicKey});
 const code=(name:string)=>Cell.fromBase64(JSON.parse(readFileSync(`build/ton/${name}.json`,'utf8')).codeBoc64);
 const committeeFile=process.env.TON_COMMITTEE_FILE;
@@ -25,14 +27,14 @@ const assets=[0,1].map(asset=>{
  return {asset,minter,escrow,configHash:data.beginParse().loadRef().hash().toString('hex')};
 });
 const plan={network:'ton-testnet',fundingAddress:wallet.address.toString({testOnly:true}),domain,assets:assets.map(a=>({asset:a.asset,master:a.minter.address.toRawString(),escrow:a.escrow.address.toRawString(),configHash:a.configHash,codeHash:escrowCode.hash().toString('hex')}))};
-writeFileSync('.state/ton-plan.json',JSON.stringify(plan,null,2));
+writeFileSync(statePath('ton-plan.json'),JSON.stringify(plan,null,2));
 console.log(JSON.stringify(plan,null,2));
 if(send){
- if(existsSync('.state/ton-deployment-attempt.json'))throw new Error('Prior deployment attempt exists; reconcile wallet sequence and addresses before another attempt');
+ if(existsSync(statePath('ton-deployment-attempt.json')))throw new Error('Prior deployment attempt exists; reconcile wallet sequence and addresses before another attempt');
  const client=new TonClient4({endpoint:'https://testnet-v4.tonhubapi.com'}),opened=client.open(wallet),seqno=await opened.getSeqno();
  const messages=assets.flatMap(a=>[a.minter,a.escrow]).map(c=>internal({to:c.address,value:toNano('0.2'),init:c.init!,body:Cell.EMPTY}));
  const transfer=wallet.createTransfer({seqno,secretKey:keys.secretKey,messages});
- writeFileSync('.state/ton-deployment-attempt.json',JSON.stringify({seqno,body:transfer.toBoc().toString('base64'),plan},null,2),{mode:0o600,flag:'wx'});
+ writeFileSync(statePath('ton-deployment-attempt.json'),JSON.stringify({seqno,body:transfer.toBoc().toString('base64'),plan},null,2),{mode:0o600,flag:'wx'});
  await opened.send(transfer);
  console.log('Submitted. Verify all four contract addresses on TON testnet; this is not a finality assertion.');
 }

@@ -17,14 +17,17 @@ export function signClaim(digest:Uint8Array,secret:bigint):SchnorrSignature {
   const pk=verifyingKey(secret),nonce=newSigningKey(),announcement=ecMulGenerator(nonce);
   return {announcement,response:(nonce+challenge(digest,announcement,pk)*secret)%JUBJUB_ORDER};
 }
+export function validPoint(p:JubjubPoint):boolean {
+ try {const id=ecMulGenerator(0n);if(p.x===id.x&&p.y===id.y)return false;const check=ecAdd(ecMul(p,JUBJUB_ORDER-1n),p);return check.x===id.x&&check.y===id.y;}catch{return false;}
+}
 export function verifyClaim(digest:Uint8Array,pk:JubjubPoint,sig:SchnorrSignature):boolean {
   try {
-    if(digest.length!==32||sig.response<0n||sig.response>=JUBJUB_ORDER)return false;
+    if(!validPoint(pk)||!validPoint(sig.announcement)||digest.length!==32||sig.response<0n||sig.response>=JUBJUB_ORDER)return false;
     const lhs=ecMulGenerator(sig.response),rhs=ecAdd(sig.announcement,ecMul(pk,challenge(digest,sig.announcement,pk)));
     return lhs.x===rhs.x&&lhs.y===rhs.y;
   } catch{return false;}
 }
-export const witnesses={quotient:({privateState}: {privateState:Record<string,never>},n:bigint,d:bigint):[Record<string,never>,bigint]=>{
+export const witnesses={scalarParts:({privateState}:{privateState:Record<string,never>},value:bigint):[Record<string,never>,[bigint,bigint]]=>[privateState,[value>>248n,value&((1n<<248n)-1n)]],quotient:({privateState}: {privateState:Record<string,never>},n:bigint,d:bigint):[Record<string,never>,bigint]=>{
   if(d<=0n)throw new Error('division by zero');return [privateState,n/d];
 }};
 

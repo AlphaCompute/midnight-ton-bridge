@@ -1,3 +1,5 @@
+import {authorizeSignature,type SigningPolicy} from '../src/signer-policy.js';
+import {readSecret,statePath,stateDirectory} from '../src/environment.js';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {TonClient4} from '@ton/ton';
@@ -13,7 +15,7 @@ import {signRelease} from '../src/ton.js';
 const [command,configPath,indexArg]=process.argv.slice(2);
 const json=(value:unknown)=>JSON.stringify(value,(_,v)=>typeof v==='bigint'?v.toString():v,2);
 if(command==='keygen'){
- const dir=configPath??'.state/operator';mkdirSync(dir,{recursive:true,mode:0o700});
+ const dir=configPath??statePath('operator');mkdirSync(dir,{recursive:true,mode:0o700});
  const secretPath=`${dir}/secret.json`;if(existsSync(secretPath))throw new Error('operator key already exists');
  const seed=randomBytes(32),midnight=newSigningKey(),ton=keyPairFromSeed(seed);
  writeFileSync(secretPath,json({tonSeed:seed.toString('hex'),midnight:midnight.toString()}),{mode:0o600,flag:'wx'});
@@ -21,23 +23,28 @@ if(command==='keygen'){
  console.log(`Keys written in ${dir}; distribute public.json only.`);
 }else if(command==='attest-deposit'){
  if(!configPath||!indexArg)throw new Error('usage: operator.ts attest-deposit CONFIG SEQUENCE');
- const config=JSON.parse(readFileSync(configPath,'utf8')) as {rpc:string;source:Parameters<typeof observeTon>[1];bridge:BridgeConfig;signer:0|1|2;keyFile:string};
+ const config=JSON.parse(readFileSync(configPath,'utf8')) as {rpc:string;source:Parameters<typeof observeTon>[1];bridge:BridgeConfig;signer:0|1|2;keyFile:string;policy:SigningPolicy};
  config.bridge.committee=config.bridge.committee.map(p=>({x:BigInt(p.x),y:BigInt(p.y)})) as BridgeConfig['committee'];
  const receipt=await observeTon(new TonClient4({endpoint:config.rpc}),config.source,BigInt(indexArg));
  const client=new BridgeClient(config.bridge,{call:async()=>{throw new Error('signer never submits');}});
- const secret=JSON.parse(readFileSync(config.keyFile,'utf8')) as {midnight:string};
- const signature=signClaim(client.claimDigest(receipt),BigInt(secret.midnight));
+ const secret=readSecret<{midnight:string}>(config.keyFile);
+ const own=verifyingKey(BigInt(secret.midnight)),expected=config.bridge.committee[config.signer];
+ if(!expected||own.x!==expected.x||own.y!==expected.y)throw new Error('signer key does not match committee slot');
+ const digest=client.claimDigest(receipt);
+ authorizeSignature(config.policy,`claim:${config.bridge.midnightAddress}:${receipt.id}`,Buffer.from(digest).toString('hex'),BigInt(receipt.amount));
+ const signature=signClaim(digest,BigInt(secret.midnight));
  console.log(json({receipt,attestation:{signer:config.signer,signature}}));
 }else if(command==='attest-redemption'){
  if(!configPath||!indexArg)throw new Error('usage: operator.ts attest-redemption CONFIG REQUEST_JSON');
- const config=JSON.parse(readFileSync(configPath,'utf8')) as {network:'local'|'preprod';indexer:string;indexerWS:string;address:string;pins:MidnightPins;escrows:[string,string];signer:0|1|2;keyFile:string};
+ const config=JSON.parse(readFileSync(configPath,'utf8')) as {network:'local'|'preprod';indexer:string;indexerWS:string;address:string;pins:MidnightPins;escrows:[string,string];signer:0|1|2;keyFile:string;policy:SigningPolicy};
  if(config.network!=='local'&&config.network!=='preprod')throw new Error('test networks only');
  setNetworkId(config.network==='local'?'undeployed':'preprod');globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
  const provider=indexerPublicDataProvider(config.indexer,config.indexerWS),request=JSON.parse(readFileSync(indexArg,'utf8')) as RedemptionRequest;
  const tx=await provider.watchForTxData(request.transactionId);if(tx.status!=='SucceedEntirely')throw new Error('transaction failed');
  const state=await provider.queryContractState(config.address,{type:'blockHash',blockHash:tx.blockHash});if(!state)throw new Error('contract not found');
  const digest=verifyRedemption(state,config.pins,request,config.escrows);
- const secret=JSON.parse(readFileSync(config.keyFile,'utf8')) as {tonSeed:string};
+ const secret=readSecret<{tonSeed:string}>(config.keyFile);
+ authorizeSignature(config.policy,`release:${config.address}:${request.id}`,digest.toString('hex'),BigInt(request.amount));
  const signature=signRelease(digest,keyPairFromSeed(Buffer.from(secret.tonSeed,'hex')).secretKey);
  console.log(json({request,blockHash:tx.blockHash,blockHeight:tx.blockHeight,signer:config.signer,signature:signature.toString('hex')}));
 }else throw new Error('Commands: keygen [directory], attest-deposit CONFIG SEQUENCE, attest-redemption CONFIG REQUEST_JSON');

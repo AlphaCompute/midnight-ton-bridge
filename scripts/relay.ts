@@ -1,3 +1,4 @@
+import {network,statePath,stateDirectory} from '../src/environment.js';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {BridgeClient,type BridgeConfig,type ClaimAttestation} from '../src/sdk.js';
 import {openMidnight} from '../src/live-midnight.js';
@@ -16,7 +17,7 @@ if(command==='claim'){
  const canonical=(r:DepositReceipt)=>JSON.stringify([r.id,r.network,Address.parse(r.escrow).toRawString(),r.sequence,r.asset,r.amount,r.recipient]);
  if(canonical(entries[0]!.receipt)!==canonical(entries[1]!.receipt))throw new Error('observers did not agree on the same transfer');
  for(const {attestation:a} of entries){a.signature.response=BigInt(a.signature.response);a.signature.announcement={x:BigInt(a.signature.announcement.x),y:BigInt(a.signature.announcement.y)};}
- if((process.env.MIDNIGHT_NETWORK??'local')!==config.network)throw new Error('provider network differs from bridge config');
+ if(network()!==config.network)throw new Error('provider network differs from bridge config');
  const client=await openMidnight();
  try{const bridge=new BridgeClient(config,{call:async(c,args)=>{const r=await client.call(config.midnightAddress,c,args);return r.public.txId;}});console.log(await bridge.claim(entries[0]!.receipt,entries.map(x=>x.attestation)));}finally{await client.close();}
 }else if(command==='release'){
@@ -34,7 +35,7 @@ if(command==='claim'){
  else{
   const pair=keyPairFromSeed(Buffer.from((read(config.walletKeyFile) as {seed:string}).seed,'hex')),wallet=WalletContractV4.create({workchain:0,publicKey:pair.publicKey});
   const client=new TonClient4({endpoint:'https://testnet-v4.tonhubapi.com'}),opened=client.open(wallet);
-  mkdirSync('.state',{recursive:true,mode:0o700});const journal=new Journal('.state/ton-releases.sqlite'),key=`${escrow.toRawString()}:${r.id}`;
+  stateDirectory();const journal=new Journal(statePath('ton-releases.sqlite')),key=`${escrow.toRawString()}:${r.id}`;
   try{
    if(journal.get(key))throw new Error('existing release attempt: reconcile exact wallet and jetton traces before retrying');
    const seqno=await opened.getSeqno(),tx=wallet.createTransfer({seqno,secretKey:pair.secretKey,messages:[internal({to:escrow,value:toNano('0.2'),body})]});

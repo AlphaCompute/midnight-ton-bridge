@@ -7,8 +7,8 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "build": "tsc && node scripts/build-assets.mjs",
-    "test": "node --import tsx --test --test-force-exit tests/*.test.ts",
+    "build": "node scripts/assert-generated.mjs && tsc && node scripts/build-assets.mjs",
+    "test": "node scripts/assert-generated.mjs && node --import tsx --test --test-force-exit tests/*.test.ts",
     "check": "npm run build && npm test",
     "compile:ton": "tsx scripts/compile-ton.ts",
     "compile:midnight": "bash scripts/compile-midnight.sh",
@@ -20,7 +20,11 @@
     "relay": "tsx --env-file-if-exists=.env scripts/relay.ts",
     "manifest": "node scripts/manifest.mjs",
     "validate:local": "tsx scripts/validate-local.ts",
-    "mint:ton": "tsx scripts/mint-ton.ts"
+    "mint:ton": "tsx scripts/mint-ton.ts",
+    "prepare:testnet": "tsx scripts/prepare-testnet.ts",
+    "demo:testnet": "tsx --env-file-if-exists=.env scripts/demo-testnet.ts",
+    "verify:ton": "tsx scripts/verify-ton.ts",
+    "fund:ton": "tsx scripts/fund-ton-testnet.ts"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",
@@ -33,6 +37,7 @@
     "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
     "@midnight-ntwrk/onchain-runtime-v3": "3.0.0",
     "@midnight-ntwrk/testkit-js": "4.1.1",
+    "@midnight-ntwrk/wallet-sdk": "1.1.0",
     "@noble/curves": "2.4.0",
     "@ton/core": "0.63.1",
     "@ton/crypto": "3.3.0",

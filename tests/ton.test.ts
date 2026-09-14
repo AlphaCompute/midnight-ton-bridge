@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {Blockchain} from '@ton/sandbox';
+import {Blockchain,internal as sandboxInternal} from '@ton/sandbox';
 import {beginCell,Cell,toNano} from '@ton/core';
 import {keyPairFromSeed} from '@ton/crypto';
 import {Contract as MidnightContract,ledger,pureCircuits} from '../build/midnight/contract/index.js';
@@ -8,7 +8,7 @@ import {createConstructorContext,createCircuitContext,sampleContractAddress} fro
 import {verifyingKey,signClaim,witnesses} from '../src/midnight.js';
 import {depositId} from '../src/receipts.js';
 import {compileTon} from '../scripts/compile-ton.js';
-import {TonContract,escrowData,jettonWallet,transferBody,releaseDigest,releaseBody,signRelease} from '../src/ton.js';
+import {TonContract,escrowData,jettonWallet,transferBody,releaseDigest,releaseBody,signRelease,refundBody} from '../src/ton.js';
 
 test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adversarial rejection',async()=>{
   const code=async(n:string)=>Cell.fromBase64((await compileTon(n)).codeBoc64);
@@ -22,6 +22,9 @@ test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adver
   await escrow.send(owner.getSender());
   await minter.send(owner.getSender(),beginCell().storeUint(0x4d494e54,32).storeAddress(user.address).storeUint(10000,64).endCell());
   const wallet=chain.openContract(jettonWallet(user.address,minter.address,walletCode));
+  const fakeBounce=beginCell().storeUint(0xffffffff,32).storeUint(0x178d4519,32).storeUint(0,64).storeCoins(9999).endCell();
+  await chain.sendMessage(sandboxInternal({from:attacker.address,to:wallet.address,value:toNano('0.05'),bounced:true,body:fakeBounce}));
+  assert.equal(await wallet.getNumber('get_wallet_data'),10000n);
   const mintResult=await wallet.getNumber('get_wallet_data');assert.equal(mintResult,10000n);
   await wallet.send(user.getSender(),transferBody(1n,1000n,escrow.address,user.address,Buffer.alloc(32,9)));
   assert.equal(await escrow.getNumber('locked'),1000n);assert.equal(await escrow.getNumber('depositCount'),1n);
@@ -50,23 +53,20 @@ test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adver
   await wallet.send(user.getSender(),transferBody(2n,100n,escrow.address,user.address));
   assert.equal(await escrow.getNumber('locked'),600n);
   assert.equal(await wallet.getNumber('get_wallet_data'),9300n);
-  const recoveryId=Buffer.alloc(32,90);
-  const recoveryHash=releaseDigest(escrow.address,domain,recoveryId,100n,user.address,true);
-  const recoveryBody=releaseBody(recoveryId,100n,user.address,0,2,signRelease(recoveryHash,keys[0]!.secretKey),signRelease(recoveryHash,keys[2]!.secretKey),true);
-  await escrow.send(owner.getSender(),recoveryBody);
-  assert.equal(await escrow.getNumber('locked'),600n);
-  assert.equal(await wallet.getNumber('get_wallet_data'),9400n);
-  await escrow.send(owner.getSender(),recoveryBody);assert.equal(await wallet.getNumber('get_wallet_data'),9400n);
+  assert.equal(await escrow.getNumber('refundCount'),1n);
+  const record=(await escrow.getCell('refund',0n)).beginParse();assert.equal(record.loadUintBig(64),100n);assert(record.loadAddress().equals(user.address));
+  await escrow.send(attacker.getSender(),refundBody(0n));
+  assert.equal(await escrow.getNumber('locked'),600n);assert.equal(await wallet.getNumber('get_wallet_data'),9400n);
+  await escrow.send(attacker.getSender(),refundBody(0n));assert.equal(await wallet.getNumber('get_wallet_data'),9400n);
+  // The old arbitrary recovery opcode is no longer accepted.
+  await escrow.send(attacker.getSender(),beginCell().storeUint(0x42524702,32).endCell());assert.equal(await escrow.getNumber('locked'),600n);
   // A cap-exceeding deposit must not create an unclaimable registered receipt.
   await wallet.send(user.getSender(),transferBody(3n,500n,escrow.address,user.address,Buffer.alloc(32,9)));
   assert.equal(await escrow.getNumber('locked'),600n);assert.equal(await escrow.getNumber('depositCount'),1n);
-  const capId=Buffer.alloc(32,92),capHash=releaseDigest(escrow.address,domain,capId,500n,user.address,true);
-  await escrow.send(owner.getSender(),releaseBody(capId,500n,user.address,0,2,signRelease(capHash,keys[0]!.secretKey),signRelease(capHash,keys[2]!.secretKey),true));
+  await escrow.send(attacker.getSender(),refundBody(1n));
   assert.equal(await wallet.getNumber('get_wallet_data'),9400n);assert.equal(await escrow.getNumber('locked'),600n);
-  // A wallet rejection of an impossible recovery must not inflate locked backing.
-  const failedId=Buffer.alloc(32,91),failedHash=releaseDigest(escrow.address,domain,failedId,999999n,user.address,true);
-  await escrow.send(owner.getSender(),releaseBody(failedId,999999n,user.address,0,2,signRelease(failedHash,keys[0]!.secretKey),signRelease(failedHash,keys[2]!.secretKey),true));
-  assert.equal(await escrow.getNumber('locked'),600n);
-  assert.equal(await escrow.getNumber('releaseState',BigInt('0x'+failedId.toString('hex'))),0n);
-
+  // A forged downstream failure must never unlock collateral or clear replay state.
+  await escrow.send(attacker.getSender(),beginCell().storeUint(0x42524641,32).storeUint(0,64).storeCoins(400).endCell());
+  assert.equal(await escrow.getNumber('locked'),600n);assert.equal(await escrow.getNumber('releaseState',BigInt('0x'+receipt.toString('hex'))),1n);
+  await escrow.send(attacker.getSender(),refundBody(999n));assert.equal(await wallet.getNumber('get_wallet_data'),9400n);
 });

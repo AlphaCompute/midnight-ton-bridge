@@ -9,7 +9,7 @@ fun onInternalMessage(in: InMessage) {
   assert(in.senderAddress == s.owner && in.valueCoins >= ton("0.1")) throw 401;
   assert(m.amount > 0 && s.supply + m.amount <= s.cap) throw 402;
   s.supply += m.amount;
-  val data = beginCell().storeCoins(0).storeAddress(m.recipient).storeAddress(contract.getAddress()).storeRef(s.walletCode).endCell();
+  val data = beginCell().storeCoins(0).storeAddress(m.recipient).storeAddress(contract.getAddress()).storeRef(s.walletCode).storeBool(false).endCell();
   createMessage({dest:AutoDeployAddress {workchain:0,stateInit:{code:s.walletCode,data:data}},value:ton("0.08"),bounce:BounceMode.Only256BitsOfBody,
     body:InternalTransfer {queryId:0,amount:m.amount as coins,from:contract.getAddress(),response:s.owner,forwardTonAmount:0,
     forwardPayload:beginCell().storeBool(false).endCell().beginParse()}}).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);

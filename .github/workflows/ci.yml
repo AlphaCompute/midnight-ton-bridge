@@ -1,0 +1,21 @@
+name: bridge-validation
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: bash scripts/bootstrap.sh
+      - run: npm run check
+      - run: npm --prefix examples/notes ci && npm --prefix examples/notes test
+      - run: mkdir -p tmp && npm pack --json --pack-destination tmp > tmp/pack.json && node scripts/check-package.mjs tmp/pack.json

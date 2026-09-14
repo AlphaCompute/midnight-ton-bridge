@@ -2,7 +2,13 @@ pragma language_version 0.23;
 import CompactStandardLibrary;
 
 struct JubjubSchnorrSignature { announcement: JubjubPoint; response: Field; }
+witness scalarParts(value: Field): [Uint<8>, Uint<248>];
 circuit jubjubSchnorrVerify<#N>(msg: Vector<N, Field>, signature: JubjubSchnorrSignature, pk: JubjubPoint): Boolean {
+  const [high, low] = scalarParts(signature.response);
+  assert(signature.response == (high as Field) * (452312848583266388373324160190187140051835877600158453279131187530910662656 as Field) + (low as Field), "scalar decomposition");
+  assert(high < 14 || (high == 14 && low < 222104516725044372704429320860625768980218979470098935457522536959433977015), "noncanonical response");
+  assert(signature.announcement != ecMulGenerator(0), "identity announcement");
+  assert(ecAdd(ecMul(signature.announcement, 6554484396890773809930967563523245729705921265872317281365359162392183254198 as Field), signature.announcement) == ecMulGenerator(0), "announcement outside subgroup");
   const c = (slice<31>(upgradeFromTransient(transientHash<[Field, Field, Field, Field, Vector<N, Field>]>([jubjubPointX(signature.announcement), jubjubPointY(signature.announcement), jubjubPointX(pk), jubjubPointY(pk), msg])), 0) as Uint<248>) as Field;
   return ecMulGenerator(signature.response) == ecAdd(signature.announcement, ecMul(pk, c));
 }
@@ -32,6 +38,9 @@ constructor(d: Bytes<32>, keys: Vector<3, JubjubPoint>, limit: Uint<64>) {
   assert(disclose(limit) > 0, "zero cap");
   assert(disclose(keys[0]) != disclose(keys[1]) && disclose(keys[1]) != disclose(keys[2]) && disclose(keys[0]) != disclose(keys[2]), "duplicate committee");
   assert(disclose(keys[0]) != ecMulGenerator(0) && disclose(keys[1]) != ecMulGenerator(0) && disclose(keys[2]) != ecMulGenerator(0), "identity committee key");
+  for (const i of 0..3) {
+    assert(ecAdd(ecMul(disclose(keys[i]), 6554484396890773809930967563523245729705921265872317281365359162392183254198 as Field), disclose(keys[i])) == ecMulGenerator(0), "committee outside subgroup");
+  }
   domain = disclose(d);
   committee = disclose(keys);
   cap = disclose(limit);
@@ -78,7 +87,8 @@ export circuit addLiquidity(owner: Bytes<32>, x: Uint<64>, y: Uint<64>, minShare
   const minted = totalShares == 0 ? x : divide(x * totalShares, reserve[0] as Uint<128>);
   assert(disclose(minted) > 0 && disclose(minted) >= disclose(minShares), "share slippage");
   if (totalShares > 0) {
-    assert(disclose(y) * reserve[0] >= disclose(x) * reserve[1], "imbalanced deposit");
+    const requiredY = divide((x * reserve[1]) + ((reserve[0] as Uint<128>) - 1), reserve[0] as Uint<128>);
+    assert(disclose(y) == disclose(requiredY), "imbalanced deposit or donation");
   }
   receiveUnshielded(tokenType(tokenDomain(0), kernel.self()), disclose(x));
   receiveUnshielded(tokenType(tokenDomain(1), kernel.self()), disclose(y));

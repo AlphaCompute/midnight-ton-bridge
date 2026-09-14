@@ -1,5 +1,5 @@
 import {pureCircuits} from '../build/midnight/contract/index.js';
-import {type SchnorrSignature,quoteSwap,verifyClaim} from './midnight.js';
+import {type SchnorrSignature,quoteSwap,verifyClaim,validPoint} from './midnight.js';
 import {type JubjubPoint} from '@midnight-ntwrk/compact-runtime';
 import {Address} from '@ton/core';
 import {type DepositReceipt} from './receipts.js';
@@ -19,6 +19,7 @@ export class BridgeClient {
   if(config.escrows.length!==2||config.committee.length!==3)throw new Error('invalid routes or committee');
   config.escrows.forEach(a=>{if(Address.parse(a).workChain!==0)throw new Error('only basechain escrows supported');});
   if(new Set(config.escrows.map(a=>Address.parse(a).toRawString())).size!==2)throw new Error('asset escrows must differ');
+  if(config.committee.some(p=>!validPoint(p)))throw new Error('invalid committee point');
   if(new Set(config.committee.map(p=>`${p.x}:${p.y}`)).size!==3)throw new Error('duplicate committee');
  }
  depositMessage(asset:0|1,amount:bigint,midnightRecipient:string,tonSender:string,queryId:bigint){

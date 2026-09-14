@@ -11,6 +11,7 @@ export function depositId(escrow:string,sequence:bigint):string {
 export async function observeTon(client:TonClient4,config:{escrow:string;asset:0|1;codeHash:string;configHash:string;confirmationDepth:number},sequence:bigint):Promise<DepositReceipt>{
  if(!Number.isSafeInteger(config.confirmationDepth)||config.confirmationDepth<1)throw new Error('invalid confirmation depth');
  const address=Address.parse(config.escrow),head=await client.getLastBlock(),block=head.last.seqno-config.confirmationDepth;
+ if(Math.abs(Date.now()/1000-head.now)>120)throw new Error('stale TON RPC head');
  if(block<1)throw new Error('chain not ready');
  const account=await client.getAccount(block,address),state=account.account.state;
  if(state.type!=='active'||!state.code||!state.data)throw new Error('inactive escrow');

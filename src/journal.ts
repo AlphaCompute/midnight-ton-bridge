@@ -1,3 +1,4 @@
+import {chmodSync} from 'node:fs';
 import {DatabaseSync} from 'node:sqlite';
 export type Stage='observed'|'prepared'|'sending'|'submitted'|'confirmed'|'rejected';
 export type Entry={id:string;payload:string;stage:Stage;transaction:string|null;txid:string|null;error:string|null};
@@ -7,7 +8,7 @@ export type Entry={id:string;payload:string;stage:Stage;transaction:string|null;
 export class Journal {
  private db:DatabaseSync;
  constructor(path:string){
-  this.db=new DatabaseSync(path);this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS transfers(id TEXT PRIMARY KEY,payload TEXT NOT NULL,stage TEXT NOT NULL,tx TEXT,txid TEXT,error TEXT);');
+  this.db=new DatabaseSync(path);if(path!==':memory:')chmodSync(path,0o600);this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS transfers(id TEXT PRIMARY KEY,payload TEXT NOT NULL,stage TEXT NOT NULL,tx TEXT,txid TEXT,error TEXT);');
  }
  close(){this.db.close();}
  get(id:string):Entry|undefined{return this.db.prepare('SELECT id,payload,stage,tx AS "transaction",txid,error FROM transfers WHERE id=?').get(id) as Entry|undefined;}
@@ -18,7 +19,7 @@ export class Journal {
  move(id:string,from:Stage,to:Stage,tx:string|null=null,txid:string|null=null,error:string|null=null){
   const allowed:Record<Stage,Stage[]>={observed:['prepared','rejected'],prepared:['sending','rejected'],sending:['submitted','confirmed','rejected'],submitted:['confirmed','rejected'],confirmed:[],rejected:[]};
   if(!allowed[from].includes(to))throw new Error('invalid transition');
-  if(to==='prepared'&&!tx)throw new Error('prepared transaction required');
+  if(to==='prepared'&&(!tx||!txid))throw new Error('prepared transaction required');
   const result=this.db.prepare('UPDATE transfers SET stage=?,tx=COALESCE(?,tx),txid=COALESCE(?,txid),error=? WHERE id=? AND stage=?').run(to,tx,txid,error,id,from);
   if(result.changes!==1)throw new Error('transition lost race or wrong state');return this.get(id)!;
  }

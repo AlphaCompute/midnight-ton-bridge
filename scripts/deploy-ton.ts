@@ -1,3 +1,4 @@
+import {assertTonTestnet} from '../src/ton-network.js';
 import {network,readSecret,statePath,stateDirectory} from '../src/environment.js';
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
@@ -27,11 +28,13 @@ const assets=[0,1].map(asset=>{
  return {asset,minter,escrow,configHash:data.beginParse().loadRef().hash().toString('hex')};
 });
 const plan={network:'ton-testnet',fundingAddress:wallet.address.toString({testOnly:true}),domain,assets:assets.map(a=>({asset:a.asset,master:a.minter.address.toRawString(),escrow:a.escrow.address.toRawString(),configHash:a.configHash,codeHash:escrowCode.hash().toString('hex')}))};
+if(existsSync(statePath('ton-plan.json'))&&JSON.stringify(JSON.parse(readFileSync(statePath('ton-plan.json'),'utf8')))!==JSON.stringify(plan))throw new Error('Existing TON plan differs; preserve the old route and use a new state directory');
 writeFileSync(statePath('ton-plan.json'),JSON.stringify(plan,null,2));
 console.log(JSON.stringify(plan,null,2));
 if(send){
  if(existsSync(statePath('ton-deployment-attempt.json')))throw new Error('Prior deployment attempt exists; reconcile wallet sequence and addresses before another attempt');
  const client=new TonClient4({endpoint:'https://testnet-v4.tonhubapi.com'}),opened=client.open(wallet),seqno=await opened.getSeqno();
+ assertTonTestnet(await client.getLastBlock());
  const messages=assets.flatMap(a=>[a.minter,a.escrow]).map(c=>internal({to:c.address,value:toNano('0.2'),init:c.init!,body:Cell.EMPTY}));
  const transfer=wallet.createTransfer({seqno,secretKey:keys.secretKey,messages});
  writeFileSync(statePath('ton-deployment-attempt.json'),JSON.stringify({seqno,body:transfer.toBoc().toString('base64'),plan},null,2),{mode:0o600,flag:'wx'});

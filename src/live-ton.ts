@@ -1,3 +1,4 @@
+import {assertTonTestnet} from './ton-network.js';
 import {readFileSync,openSync,closeSync,unlinkSync} from 'node:fs';
 import {Cell,type MessageRelaxed} from '@ton/core';
 import {TonClient4,WalletContractV4} from '@ton/ton';
@@ -11,6 +12,7 @@ export function openTon(){
  return {client,wallet,opened,send:async(id:string,messages:MessageRelaxed[])=>{
   const lock=statePath('ton-wallet.lock'),fd=openSync(lock,'wx',0o600),journal=new Journal(statePath('ton-transactions.sqlite'));
   try{
+   assertTonTestnet(await client.getLastBlock());
    if(journal.get(id))throw new Error('Existing send attempt; reconcile exact transaction before retrying');
    const seqno=await opened.getSeqno(),transfer=wallet.createTransfer({seqno,secretKey:pair.secretKey,messages});
    journal.observe(id,JSON.stringify({seqno,wallet:wallet.address.toRawString()}));journal.move(id,'observed','prepared',transfer.toBoc().toString('base64'),transfer.hash().toString('hex'));journal.move(id,'prepared','sending');

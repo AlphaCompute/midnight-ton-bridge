@@ -1,0 +1,166 @@
+{
+  "network": "TON-testnet/Midnight-preprod",
+  "custody": "single developer host; synthetic assets only",
+  "midnight": "8349a4b927988e0cf9a7ed0a1fd644c38bcb4a1bea587ba66f5273b7c04eaba0",
+  "ton": [
+    {
+      "asset": 0,
+      "master": "0:d66afd73575200423d6239fa57daccdfbbe068da643dc10cf706f9f9c209e852",
+      "escrow": "0:f3b72bcb5c03f12c3ff63f93964ca6bcae3da5fd8041ea6ca9a7086660e1c5ee",
+      "configHash": "b7355a26584b107e5fc066498b571f7fbb3e86e8b3f7ec451e3efa64790e2804",
+      "codeHash": "e43e1b80bef7a575559c9f7b1a0a7ba2c088a3831d75e8581d365fb5a8d7851d"
+    },
+    {
+      "asset": 1,
+      "master": "0:944c4d3f66c10c7305b2e09c8a45d75c3c18b9b5ae6d0315395db87f6d367025",
+      "escrow": "0:f4497e8cea0da7d5e5da8b56f3842dab515d65c0b33704aa0a41d054c6057adb",
+      "configHash": "2180402fca0a66e0f2b4bd8a32c5b1792080147bec509563d326656d51608f93",
+      "codeHash": "e43e1b80bef7a575559c9f7b1a0a7ba2c088a3831d75e8581d365fb5a8d7851d"
+    }
+  ],
+  "steps": [
+    {
+      "id": "demo-mint:0",
+      "seqno": 2,
+      "bodyHash": "451f10e0d3f22b96226590c4d25feee72c82ead5d4cdfdaefe0939824691544c",
+      "status": "wallet-sequence-advanced; verify destination trace"
+    },
+    {
+      "id": "demo-deposit:0",
+      "seqno": 3,
+      "bodyHash": "02d5d64680251e593eca81fd3b40f9f01b52a99627efffdebe046e62b06ea405",
+      "status": "wallet-sequence-advanced; verify destination trace"
+    },
+    {
+      "deposit": {
+        "id": "f0c28572d7fad43134b01b23ced40a7c3af2538ef3bb309e48869ee4c2e701b2",
+        "network": "ton-testnet",
+        "escrow": "0:f3b72bcb5c03f12c3ff63f93964ca6bcae3da5fd8041ea6ca9a7086660e1c5ee",
+        "sequence": "0",
+        "asset": 0,
+        "amount": "10000",
+        "recipient": "5ac233322e86b5497271bfa62aa598c43299ca58c56220272797ed4a893a8439",
+        "block": 84821065,
+        "blockRoot": "YgYzMMggxhQ7iu7IygAvK4vPCOrKE1dqeCZfw7aMG9s="
+      }
+    },
+    {
+      "circuit": "claim",
+      "txId": "009cebf36a7d3491def5952fc4d7c38799bce4fc04cc2a082b6032feb23647204f",
+      "blockHeight": 2550602,
+      "status": "SucceedEntirely",
+      "milliseconds": 39735,
+      "blockHash": "53db0fdeafbb7b93745ebe9d4c59c0aa3d4b2fe256a6efab2627cd5d6fdacce9"
+    },
+    {
+      "id": "demo-mint:1",
+      "seqno": 4,
+      "bodyHash": "44721a1f8f272a91aac79e54572969d8fa5899899233b5ea54970784acfa9313",
+      "status": "wallet-sequence-advanced; verify destination trace"
+    },
+    {
+      "id": "demo-deposit:1",
+      "seqno": 5,
+      "bodyHash": "10e0d6d8de7d5c48059459acc5db31d41a351ca9668382039524d6110b977f25",
+      "status": "wallet-sequence-advanced; verify destination trace"
+    },
+    {
+      "deposit": {
+        "id": "7ee36e425a98608bb816699f4e946c943af5c3398575cd3ac19d18374cfda010",
+        "network": "ton-testnet",
+        "escrow": "0:f4497e8cea0da7d5e5da8b56f3842dab515d65c0b33704aa0a41d054c6057adb",
+        "sequence": "0",
+        "asset": 1,
+        "amount": "10000",
+        "recipient": "5ac233322e86b5497271bfa62aa598c43299ca58c56220272797ed4a893a8439",
+        "block": 84821222,
+        "blockRoot": "dz8MoH3V8RcBnD9NF4Mx/pOXfRofHIKFne7Ai+MJ+a0="
+      }
+    },
+    {
+      "circuit": "claim",
+      "txId": "0032f4867a8f29bec3bbc046de0cf1643038b9e934782074630e7b5dab28f47dd5",
+      "blockHeight": 2550611,
+      "status": "SucceedEntirely",
+      "milliseconds": 30635,
+      "blockHash": "45865f791f3351706034ce3dafaca827c1c9f84fe69d815e3a9c2f27d7b728b7"
+    },
+    {
+      "circuit": "addLiquidity",
+      "txId": "0048f1ccf53e7edde82bbe0d1cfef626a55253112cf35781f4a71cd56470fdb9b5",
+      "blockHeight": 2550618,
+      "status": "SucceedEntirely",
+      "milliseconds": 27016,
+      "blockHash": "bfef211a05109139158972525400614cb8d74b4122d22e7151e5973ce78f2f32"
+    },
+    {
+      "circuit": "swap",
+      "txId": "00da5c6eeffb644cb0ebf07e9090cdaf0b7f6dd893efd671bc70f7a16c01bbc76b",
+      "blockHeight": 2550622,
+      "status": "SucceedEntirely",
+      "milliseconds": 20350,
+      "blockHash": "f919fc02eda6938d0aad437ecb792a643caacd2b80cbe049ccc6cfad1b6b04dd"
+    },
+    {
+      "circuit": "removeLiquidity",
+      "txId": "00f933aef92f56919674885e4cbe805fc2b22e21691b70129720179a67e25f7051",
+      "blockHeight": 2550628,
+      "status": "SucceedEntirely",
+      "milliseconds": 27927,
+      "blockHash": "d0eb678eff781ec43bb9eeaf4f564db2e009a725609c522e8f62340ae109d23b"
+    },
+    {
+      "circuit": "redeem",
+      "txId": "00b2a8f30bf35bc96930a26c06cf8624b05652180f4ba21a47c316e3d4b4aec28a",
+      "blockHeight": 2550632,
+      "status": "SucceedEntirely",
+      "milliseconds": 21088,
+      "blockHash": "d61a595040ce4859abc3234382817fde21f6f9b7be2922c7c2be5d6225d3de83"
+    },
+    {
+      "id": "demo-release:28505a176abfbb058b9d49b32ff962c89de62e4068ccaf2f6fef1c883d0b86ab",
+      "seqno": 6,
+      "bodyHash": "b52347e9b50c5155882e50c2540662c94c78bbbfeccf8ba6d373c74cdb653654",
+      "status": "wallet-sequence-advanced; verify destination trace"
+    }
+  ],
+  "delivery": {
+    "block": 84821791,
+    "queryId": "0",
+    "amount": "100",
+    "from": "0:a1e05ab838932ecbbdb161671de06989ab9dd1048dbad959ba89d2a392e0f3b4",
+    "to": "0:d6f04d908772ebe850e3bc6d154f6f2e3a507c37a01b01f633cee9ff6a654017",
+    "sourceTx": "9bb63282f933c247f71ed148fb1eb53658aa2d87d01799cfbfeaedb98793af7d",
+    "recipientTx": "7790d4e10daf872b0b892ba716646ed579f0d6900528fb3fbc629e3663111430",
+    "messageHash": "d11f023f6974d71c28b1f07f5e2e6c394a6b0f82a1fcf6db8edcf8c79fcab55f"
+  },
+  "complete": true,
+  "final": {
+    "circulating": [
+      "9900",
+      "10000"
+    ],
+    "reserve": [
+      "0",
+      "0"
+    ],
+    "shares": "0"
+  },
+  "independentReadback": {
+    "verifiedAt": "2026-09-14T20:08:30.023Z",
+    "pins": {
+      "domain": "742ebc224a2a78fba858a1044df7eb2c31350b1afdad3769d8292d270e70da52",
+      "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",
+      "verifiers": {
+        "claim": "06fd3b5df85a5a056bae8ebd8f46b3268efa6988e714556785deab4b1da0ef86",
+        "redeem": "b2adef24cdd597e07893b304f50392f9f022950fbe72dade062a760e76306194",
+        "addLiquidity": "daed71d2afcd19d6ffd134467605b7571c0381f9e34c4dd8565f53f70e770db8",
+        "swap": "16c087e3565666f6bb480a995e3e7a20284f61e732b0abb7edd4ccf34a0194cd",
+        "removeLiquidity": "59646edfb8b08f0f8477400d4b24d9719803ba70a748fc823b803f3a6cc34129"
+      }
+    },
+    "immutable": true,
+    "collateralMatchesCirculation": true,
+    "allSixCallsFinalized": true
+  }
+}

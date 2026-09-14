@@ -16,7 +16,7 @@ fun onInternalMessage(in: InMessage) {
     Transfer => {
       assert(in.senderAddress == s.owner) throw 401;
       assert(msg.amount > 0 && msg.amount <= s.balance) throw 402;
-      assert(in.valueCoins >= ton("0.08") && msg.forwardTonAmount <= ton("0.02")) throw 403;
+      assert(in.valueCoins >= ton("0.08") && msg.forwardTonAmount >= ton("0.01") && msg.forwardTonAmount <= ton("0.02")) throw 403;
       assert(!s.pending.exists(msg.queryId)) throw 404;
       s.pending.set(msg.queryId,beginCell().storeCoins(msg.amount).storeAddress(wallet(s,msg.destination).calculateAddress()).endCell());
       s.balance -= msg.amount;

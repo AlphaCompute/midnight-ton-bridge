@@ -1,3 +1,6 @@
+import {TON_TESTNET_ZERO_STATE} from '../src/ton-network.js';
+import {verifyJettonDelivery} from '../src/ton-finality.js';
+import type {TonClient4} from '@ton/ton';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {Blockchain,internal as sandboxInternal} from '@ton/sandbox';
@@ -25,6 +28,8 @@ test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adver
   const fakeBounce=beginCell().storeUint(0xffffffff,32).storeUint(0x178d4519,32).storeUint(0,64).storeCoins(9999).endCell();
   await chain.sendMessage(sandboxInternal({from:attacker.address,to:wallet.address,value:toNano('0.05'),bounced:true,body:fakeBounce}));
   assert.equal(await wallet.getNumber('get_wallet_data'),10000n);
+  const noNotification=beginCell().storeUint(0x0f8a7ea5,32).storeUint(90,64).storeCoins(100).storeAddress(escrow.address).storeAddress(user.address).storeBit(false).storeCoins(0).storeBit(false).endCell();
+  await wallet.send(user.getSender(),noNotification);assert.equal(await wallet.getNumber('get_wallet_data'),10000n);assert.equal(await escrow.getNumber('depositCount'),0n);
   const mintResult=await wallet.getNumber('get_wallet_data');assert.equal(mintResult,10000n);
   await wallet.send(user.getSender(),transferBody(1n,1000n,escrow.address,user.address,Buffer.alloc(32,9)));
   assert.equal(await escrow.getNumber('locked'),1000n);assert.equal(await escrow.getNumber('depositCount'),1n);
@@ -40,9 +45,14 @@ test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adver
   ctx=midnight.impureCircuits.redeem(ctx,receipt,0n,400n,user.address.hash).context;
   assert(ledger(ctx.currentQueryContext.state).retired.member(receipt));const digest=releaseDigest(escrow.address,domain,receipt,400n,user.address);
   const body=releaseBody(receipt,400n,user.address,0,2,signRelease(digest,keys[0]!.secretKey),signRelease(digest,keys[2]!.secretKey));
-  await escrow.send(attacker.getSender(),body); // anyone may relay, cannot redirect
+  const delivered=await escrow.send(attacker.getSender(),body); // anyone may relay, cannot redirect
   assert.equal(await escrow.getNumber('locked'),600n);assert.equal(await wallet.getNumber('get_wallet_data'),9400n);
   assert.equal(ledger(ctx.currentQueryContext.state).circulating[0],await escrow.getNumber('locked'));
+  const traceClient={getLastBlock:async()=>({last:{seqno:20},init:{rootHash:TON_TESTNET_ZERO_STATE},now:Date.now()/1000}),getAccountLite:async()=>({account:{last:{lt:'1',hash:Buffer.alloc(32).toString('base64')}}}),getAccountTransactions:async(address:typeof wallet.address)=>delivered.transactions.filter(tx=>tx.address===BigInt('0x'+address.hash.toString('hex'))).map(tx=>({tx}))} as unknown as TonClient4;
+  const fromWallet=jettonWallet(escrow.address,minter.address,walletCode).address;
+  assert.equal((await verifyJettonDelivery(traceClient,fromWallet,wallet.address,0n,400n)).amount,'400');
+  await assert.rejects(()=>verifyJettonDelivery(traceClient,fromWallet,wallet.address,0n,401n),/not found/);
+  await assert.rejects(()=>verifyJettonDelivery(traceClient,attacker.address,wallet.address,0n,400n),/not found/);
   await escrow.send(attacker.getSender(),body);assert.equal(await escrow.getNumber('locked'),600n);
   const wrong=releaseBody(Buffer.alloc(32,8),400n,attacker.address,0,2,signRelease(digest,keys[0]!.secretKey),signRelease(digest,keys[2]!.secretKey));
   await escrow.send(attacker.getSender(),wrong);assert.equal(await escrow.getNumber('locked'),600n);

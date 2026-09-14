@@ -1,10 +1,11 @@
+import {assertTonTestnet} from './ton-network.js';
 import {Address,beginCell,storeMessage,type Transaction} from '@ton/core';
 import type {TonClient4} from '@ton/ton';
 const successful=(tx:Transaction)=>tx.description.type==='generic'&&!tx.description.aborted&&tx.description.computePhase.type==='vm'&&tx.description.computePhase.success&&(!tx.description.actionPhase||tx.description.actionPhase.success);
 /** Trusted-RPC trace validation: finalized recipient credit and matching outgoing
  * internal message from the expected jetton sender wallet. */
 export async function verifyJettonDelivery(client:TonClient4,from:Address,to:Address,queryId:bigint,amount:bigint,depth=3){
- const head=await client.getLastBlock();if(Math.abs(Date.now()/1000-head.now)>120||depth<1)throw new Error('stale head or unsafe depth');
+ const head=await client.getLastBlock();assertTonTestnet(head);if(Math.abs(Date.now()/1000-head.now)>120||depth<1)throw new Error('stale head or unsafe depth');
  const block=head.last.seqno-depth;
  const recent=async(address:Address)=>{const a=await client.getAccountLite(block,address);if(!a.account.last)throw new Error('no transaction history');return client.getAccountTransactions(address,BigInt(a.account.last.lt),Buffer.from(a.account.last.hash,'base64'));};
  const destination=await recent(to),source=await recent(from);

@@ -36,7 +36,7 @@ if(command==='keygen'){
  console.log(json({receipt,attestation:{signer:config.signer,signature}}));
 }else if(command==='attest-redemption'){
  if(!configPath||!indexArg)throw new Error('usage: operator.ts attest-redemption CONFIG REQUEST_JSON');
- const config=JSON.parse(readFileSync(configPath,'utf8')) as {network:'local'|'preprod';indexer:string;indexerWS:string;address:string;pins:MidnightPins;escrows:[string,string];signer:0|1|2;keyFile:string;policy:SigningPolicy};
+ const config=JSON.parse(readFileSync(configPath,'utf8')) as {network:'local'|'preprod';indexer:string;indexerWS:string;address:string;pins:MidnightPins;escrows:[string,string];committee:string[];signer:0|1|2;keyFile:string;policy:SigningPolicy};
  if(config.network!=='local'&&config.network!=='preprod')throw new Error('test networks only');
  setNetworkId(config.network==='local'?'undeployed':'preprod');globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
  const provider=indexerPublicDataProvider(config.indexer,config.indexerWS),request=JSON.parse(readFileSync(indexArg,'utf8')) as RedemptionRequest;
@@ -44,6 +44,7 @@ if(command==='keygen'){
  const state=await provider.queryContractState(config.address,{type:'blockHash',blockHash:tx.blockHash});if(!state)throw new Error('contract not found');
  const digest=verifyRedemption(state,config.pins,request,config.escrows);
  const secret=readSecret<{tonSeed:string}>(config.keyFile);
+ if(!Number.isInteger(config.signer)||config.signer<0||config.signer>2||config.committee[config.signer]!==keyPairFromSeed(Buffer.from(secret.tonSeed,'hex')).publicKey.toString('hex'))throw new Error('signer key does not match TON committee slot');
  authorizeSignature(config.policy,`release:${config.address}:${request.id}`,digest.toString('hex'),BigInt(request.amount));
  const signature=signRelease(digest,keyPairFromSeed(Buffer.from(secret.tonSeed,'hex')).secretKey);
  console.log(json({request,blockHash:tx.blockHash,blockHeight:tx.blockHeight,signer:config.signer,signature:signature.toString('hex')}));

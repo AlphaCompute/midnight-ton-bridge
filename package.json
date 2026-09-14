@@ -24,7 +24,11 @@
     "prepare:testnet": "tsx scripts/prepare-testnet.ts",
     "demo:testnet": "tsx --env-file-if-exists=.env scripts/demo-testnet.ts",
     "verify:ton": "tsx scripts/verify-ton.ts",
-    "fund:ton": "tsx scripts/fund-ton-testnet.ts"
+    "fund:ton": "tsx scripts/fund-ton-testnet.ts",
+    "wallet:sync": "tsx scripts/wallet-sync.ts",
+    "bootstrap:wallet": "tsx scripts/bootstrap-fresh-wallet.ts",
+    "verify:testnet": "tsx scripts/verify-testnet.ts",
+    "reconcile:ton": "tsx scripts/reconcile-ton.ts"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.16.0",
@@ -39,6 +43,7 @@
     "@midnight-ntwrk/testkit-js": "4.1.1",
     "@midnight-ntwrk/wallet-sdk": "1.1.0",
     "@noble/curves": "2.4.0",
+    "@polkadot/api": "16.5.6",
     "@ton/core": "0.63.1",
     "@ton/crypto": "3.3.0",
     "@ton/sandbox": "0.44.0",

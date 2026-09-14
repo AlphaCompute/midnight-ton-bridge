@@ -60,3 +60,9 @@ test('signer quota is durable, idempotent, rejects equivocation and honors stop 
   writeFileSync(policy.stopFile,'stop');assert.throws(()=>authorizeSignature(policy,'a','payload-a',100n),/paused/);
  }finally{rmSync(dir,{recursive:true});}
 });
+
+test('TON RPC identity rejects a mislabeled mainnet or unknown endpoint',async()=>{
+ const {assertTonTestnet,TON_TESTNET_ZERO_STATE}=await import('../src/ton-network.js');
+ assert.doesNotThrow(()=>assertTonTestnet({init:{rootHash:TON_TESTNET_ZERO_STATE}}));
+ assert.throws(()=>assertTonTestnet({init:{rootHash:'wrong-chain'}}),/not the pinned/);
+});

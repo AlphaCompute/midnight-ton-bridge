@@ -1,3 +1,4 @@
+import {assertTonTestnet} from './ton-network.js';
 import {createHash} from 'node:crypto';
 import {Address,Cell} from '@ton/core';
 import {TonClient4} from '@ton/ton';
@@ -11,6 +12,7 @@ export function depositId(escrow:string,sequence:bigint):string {
 export async function observeTon(client:TonClient4,config:{escrow:string;asset:0|1;codeHash:string;configHash:string;confirmationDepth:number},sequence:bigint):Promise<DepositReceipt>{
  if(!Number.isSafeInteger(config.confirmationDepth)||config.confirmationDepth<1)throw new Error('invalid confirmation depth');
  const address=Address.parse(config.escrow),head=await client.getLastBlock(),block=head.last.seqno-config.confirmationDepth;
+ assertTonTestnet(head);
  if(Math.abs(Date.now()/1000-head.now)>120)throw new Error('stale TON RPC head');
  if(block<1)throw new Error('chain not ready');
  const account=await client.getAccount(block,address),state=account.account.state;

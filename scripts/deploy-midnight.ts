@@ -1,3 +1,4 @@
+import {Journal} from '../src/journal.js';
 import {network,statePath,stateDirectory} from '../src/environment.js';
 import {readFileSync,writeFileSync,existsSync,mkdirSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
@@ -18,10 +19,14 @@ else{
 }
 if(committee.length!==3)throw new Error('three committee keys required');
 const intentPath=statePath('midnight-deployment-intent.json');
-if(existsSync(intentPath))throw new Error('Deployment intent exists; reconcile the transaction journal before retrying. Do not create a second deployment blindly.');
 const domain=process.env.BRIDGE_DOMAIN?Buffer.from(process.env.BRIDGE_DOMAIN,'hex'):randomBytes(32);
 if(domain.length!==32)throw new Error('invalid bridge domain');
-writeFileSync(intentPath,JSON.stringify({domain:domain.toString('hex'),network:network(),started:new Date().toISOString()}),{mode:0o600,flag:'wx'});
+if(existsSync(intentPath)){
+ if(!process.argv.includes('--resume'))throw new Error('Deployment intent exists; use --resume only for an attempt that never prepared a transaction');
+ const intent=JSON.parse(readFileSync(intentPath,'utf8'));
+ if(intent.domain!==domain.toString('hex')||intent.network!==network()||existsSync(statePath('midnight-deployment-candidate.json')))throw new Error('Existing deployment may have been submitted or route differs; reconcile instead');
+ const journal=new Journal(statePath('midnight-transactions.sqlite'));try{if(journal.list().some(r=>r.payload!=='DUST registration'||r.stage!=='confirmed'))throw new Error('Journal has unresolved or application transactions; reconcile before retrying');}finally{journal.close();}
+}else writeFileSync(intentPath,JSON.stringify({domain:domain.toString('hex'),network:network(),started:new Date().toISOString()}),{mode:0o600,flag:'wx'});
 const client=await openMidnight();
 try{
  const deployed=await client.deploy(domain,committee,1_000_000_000_000n);

@@ -1,4 +1,4 @@
-import {network,statePath,stateDirectory} from '../src/environment.js';
+import {network,readSecret,statePath,stateDirectory} from '../src/environment.js';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {BridgeClient,type BridgeConfig,type ClaimAttestation} from '../src/sdk.js';
 import {openMidnight} from '../src/live-midnight.js';
@@ -33,7 +33,8 @@ if(command==='claim'){
  const body=releaseBody(id,amount,recipient,a.signer,b.signer,Buffer.from(a.signature,'hex'),Buffer.from(b.signature,'hex'));
  if(!process.argv.includes('--send')){console.log(JSON.stringify({network:'ton-testnet',to:escrow.toRawString(),value:toNano('0.2').toString(),body:body.toBoc().toString('base64')}));}
  else{
-  const pair=keyPairFromSeed(Buffer.from((read(config.walletKeyFile) as {seed:string}).seed,'hex')),wallet=WalletContractV4.create({workchain:0,publicKey:pair.publicKey});
+  if(network()!=='preprod')throw new Error('live releases require BRIDGE_NETWORK=preprod');
+  const pair=keyPairFromSeed(Buffer.from(readSecret<{seed:string}>(config.walletKeyFile).seed,'hex')),wallet=WalletContractV4.create({workchain:0,publicKey:pair.publicKey});
   const client=new TonClient4({endpoint:'https://testnet-v4.tonhubapi.com'}),opened=client.open(wallet);
   stateDirectory();const journal=new Journal(statePath('ton-releases.sqlite')),key=`${escrow.toRawString()}:${r.id}`;
   try{

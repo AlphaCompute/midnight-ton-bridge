@@ -1,0 +1,38 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+import {Address,Cell} from '@ton/core';
+import WebSocket from 'ws';
+import {setNetworkId} from '@midnight-ntwrk/midnight-js-network-id';
+import {indexerPublicDataProvider} from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
+import {network,statePath} from '../src/environment.js';
+import {openTon} from '../src/live-ton.js';
+import {jettonWallet} from '../src/ton.js';
+import {observeTon} from '../src/receipts.js';
+import {verifyJettonDelivery} from '../src/ton-finality.js';
+import {verifyRedemption,type MidnightPins} from '../src/redemptions.js';
+import {ledger} from '../build/midnight/contract/index.js';
+if(network()!=='preprod')throw new Error('preprod required');
+const read=(n:string)=>JSON.parse(readFileSync(statePath(n),'utf8'));
+const e=read('testnet-evidence.json'),d=read('midnight-deployment.json') as {address:string;domain:string;pins:MidnightPins},plan=read('ton-plan.json');
+assert.equal(e.complete,true,'round trip has not completed');assert.equal(e.midnight,d.address);assert.equal(d.domain,plan.domain);
+setNetworkId('preprod');globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
+const provider=indexerPublicDataProvider('https://indexer.preprod.midnight.network/api/v3/graphql','wss://indexer.preprod.midnight.network/api/v3/graphql/ws'),ton=openTon();
+const calls=e.steps.filter((x:{circuit?:string})=>x.circuit);assert.deepEqual(calls.map((x:{circuit:string})=>x.circuit),['claim','claim','addLiquidity','swap','removeLiquidity','redeem']);
+for(const call of calls){const actual=await provider.watchForTxData(call.txId);assert.equal(actual.status,'SucceedEntirely');assert.equal(actual.blockHeight,call.blockHeight);call.blockHash=actual.blockHash;}
+const state=await provider.queryContractState(d.address,{type:'blockHash',blockHash:calls.at(-1).blockHash});assert(state);
+assert.equal(state.maintenanceAuthority.committee.length,0);assert.equal(state.maintenanceAuthority.threshold,1);
+const data=ledger(state.data);assert.deepEqual(data.circulating,[9900n,10000n]);assert.deepEqual(data.reserve,[0n,0n]);assert.equal(data.totalShares,0n);assert.equal(data.retired.size(),1n);
+const [retired]=[...data.retired],id=Buffer.from(retired![0]).toString('hex');verifyRedemption(state,d.pins,{id,asset:0,amount:'100',recipient:ton.wallet.address.toRawString(),transactionId:calls.at(-1).txId},[plan.assets[0].escrow,plan.assets[1].escrow]);
+const walletCode=Cell.fromBase64(JSON.parse(readFileSync('build/ton/test-wallet.json','utf8')).codeBoc64);
+for(const a of plan.assets){
+ const receipt=await observeTon(ton.client,{...a,confirmationDepth:3},0n),prior=e.steps.find((x:any)=>x.deposit?.asset===a.asset).deposit;
+ assert.equal(receipt.id,prior.id);assert.equal(receipt.amount,'10000');assert.equal(receipt.recipient,prior.recipient);
+ const head=await ton.client.getLastBlock(),block=head.last.seqno-3,escrow=Address.parse(a.escrow),expected=a.asset===0?9900n:10000n;
+ assert.equal((await ton.client.runMethod(block,escrow,'locked')).reader.readBigNumber(),expected);
+ assert.equal((await ton.client.runMethod(block,jettonWallet(escrow,Address.parse(a.master),walletCode).address,'get_wallet_data')).reader.readBigNumber(),expected);
+}
+e.delivery=await verifyJettonDelivery(ton.client,Address.parse(e.delivery.from),Address.parse(e.delivery.to),BigInt(e.delivery.queryId),100n);
+e.independentReadback={verifiedAt:new Date().toISOString(),pins:d.pins,immutable:true,collateralMatchesCirculation:true,allSixCallsFinalized:true};
+writeFileSync('docs/testnet-evidence.json',JSON.stringify(e,null,2)+'\n');
+writeFileSync('docs/testnet-deployment.json',JSON.stringify({network:'TON-testnet/Midnight-preprod',domain:d.domain,midnight:d.address,pins:d.pins,ton:plan.assets,tonVerification:read('ton-deployment-verified.json'),custody:'single development host; synthetic assets only'},null,2)+'\n');
+console.log('Public testnet independently re-read: six calls finalized, recipient paid, collateral and circulation match.');

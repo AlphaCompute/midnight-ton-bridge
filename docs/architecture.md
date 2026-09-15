@@ -80,3 +80,7 @@ The committee observes a complete downstream failure trace before authorizing
 restoration of an exact pending transfer. An immediate wallet bounce is automatic;
 a successful recipient delivery is verified separately. See `standard-recovery.md`.
 This remains a committee bridge with trusted RPC observations, not a light client.
+
+## LP ownership and withdrawals
+
+For LP ownership, generate a random 32-byte secret and compute `persistentHash(new CompactTypeBytes(32), secret)`. Back up the secret privately. Call `addLiquidity(ownerHash, x, y, minShares)`. The first LP chooses the price ratio; subsequent `y` must equal `ceil(x * reserve1 / reserve0)`. Excess paired donations are rejected. Shares are rounded down; the initial shares equal `x`. Swaps charge 30 bps retained in the pool. Use meaningful slippage minima. Call `removeLiquidity(secret, shares, minX, minY, recipient)` to withdraw. The contract cannot recover a lost secret. Pool reserves cannot spend permanently retired tokens.

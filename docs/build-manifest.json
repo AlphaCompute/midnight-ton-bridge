@@ -54,7 +54,7 @@
     "scripts/monitor.ts": "a2752257f633813e9f02d029e79bfe2cd2af95f874a10d8a2caa6cd966efb6ee",
     "scripts/operator.ts": "0947a2a3a3ecb54a7ff8642e04c1199f5aa197ee029886a6e105395aceadd347",
     "scripts/prepare-demo.mjs": "f5125898b480e42e6ae1b8fc5160ecbaa15138227422f56bd0b1be7c462b3f73",
-    "scripts/prepare-handoff.mjs": "534c98757bd22cebfc9891b524543500ac095d509c4af4f5a922befd3bc40dd7",
+    "scripts/prepare-handoff.mjs": "e3937662d19f50ba74b808c20f52cdf4356dda00f22f4ff9b6cde31c7b009c84",
     "scripts/prepare-testnet.ts": "19268fb54b4e7a816ca38d9cc2539a8aae9b314623645bd061ae39beea26c12e",
     "scripts/reconcile-ton.ts": "ceb7aeb8ca00ee0bfc8e1b4c3f0611377efcf4043180e127bc4eb281d8b863f9",
     "scripts/reconcile.ts": "fe0d0bd1035ed7f2c13a585ea112e441953cc423f411f7ac21d2d9a6884a13e3",

@@ -33,7 +33,7 @@ Create each configured stop file to halt new signing. Quota is reserved before s
 
 ## Relay and reconciliation
 
-`npm run relay -- claim BRIDGE_CONFIG A.json B.json` requires two identical canonical receipts and different valid signers. It submits to the matching Midnight network and checks successful finalization.
+`npm run relay -- claim BRIDGE_CONFIG A.json B.json` requires two identical canonical receipts and different valid signers. It validates and prints the prepared claim without opening a wallet. Add `--send` to submit to the matching Midnight network and check successful finalization.
 
 `npm run relay -- release TON_CONFIG A.json B.json` prepares a release message; add `--send` with `BRIDGE_NETWORK=preprod` to broadcast. TON_CONFIG contains `network: "ton-testnet"`, `domain`, two `escrows`, three TON `committee` keys and owner-only `walletKeyFile`. Signed bytes are persisted first. Treat submission as pending.
 
@@ -72,3 +72,5 @@ compares backing and circulation and reports unresolved sends. Differences can
 represent in-flight deposits/refunds or a real accounting problem; do not repair
 them with unverified claims. Archive each route's deployment and transaction
 records, including routes still holding collateral.
+
+A new TON send ID cannot bypass an earlier prepared or ambiguous send. Reconcile the stored transaction first. Submitted sends reserve their wallet sequence until the on-chain sequence advances; recipient delivery remains a separate trace check.

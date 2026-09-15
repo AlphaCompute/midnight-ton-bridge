@@ -139,7 +139,7 @@
     }
   ],
   "delivery": {
-    "block": 84833988,
+    "block": 84895573,
     "queryId": "0",
     "amount": "100",
     "from": "0:2a60f27b0b0fb0d9af8929307c5bf18b1f4b7db4459d4e5df3a61c0155ad4537",
@@ -161,7 +161,7 @@
     "shares": "0"
   },
   "independentReadback": {
-    "verifiedAt": "2026-09-14T21:29:48.941Z",
+    "verifiedAt": "2026-09-15T04:19:54.383Z",
     "pins": {
       "domain": "f8266af832df0f56a7d30e0d0112d0cc3d3e502cdaadcdc35328c5ffd98656a2",
       "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",

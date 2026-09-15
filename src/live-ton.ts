@@ -1,3 +1,4 @@
+import {assertTonSendAvailable} from './ton-send-guard.js';
 import {assertTonTestnet} from './ton-network.js';
 import {readFileSync,openSync,closeSync,unlinkSync} from 'node:fs';
 import {Cell,type MessageRelaxed} from '@ton/core';
@@ -10,16 +11,19 @@ export function openTon(keyFile=statePath('ton-test-wallet.json')){
  const pair=keyPairFromSeed(Buffer.from(readSecret<{seed:string}>(keyFile).seed,'hex'));
  const wallet=WalletContractV4.create({workchain:0,publicKey:pair.publicKey}),client=new TonClient4({endpoint:process.env.TON_RPC_URL??'https://testnet-v4.tonhubapi.com'}),opened=client.open(wallet);
  return {client,wallet,opened,send:async(id:string,messages:MessageRelaxed[])=>{
-  const lock=statePath('ton-wallet.lock'),fd=openSync(lock,'wx',0o600),journal=new Journal(statePath('ton-transactions.sqlite'));
+  const lock=statePath('ton-wallet.lock'),fd=openSync(lock,'wx',0o600);let journal:Journal|undefined;
   try{
+   journal=new Journal(statePath('ton-transactions.sqlite'));
    assertTonTestnet(await client.getLastBlock());
    if(journal.get(id))throw new Error('Existing send attempt; reconcile exact transaction before retrying');
-   const seqno=await opened.getSeqno(),transfer=wallet.createTransfer({seqno,secretKey:pair.secretKey,messages});
+   const seqno=await opened.getSeqno();
+   assertTonSendAvailable(journal.list(),wallet.address.toRawString(),seqno);
+   const transfer=wallet.createTransfer({seqno,secretKey:pair.secretKey,messages});
    journal.observe(id,JSON.stringify({seqno,wallet:wallet.address.toRawString()}));journal.move(id,'observed','prepared',transfer.toBoc().toString('base64'),transfer.hash().toString('hex'));journal.move(id,'prepared','sending');
    await opened.send(transfer);journal.move(id,'sending','submitted');
    const deadline=Date.now()+120000;
    while(Date.now()<deadline){if(await opened.getSeqno()>seqno)return {id,seqno,bodyHash:transfer.hash().toString('hex'),status:'wallet-sequence-advanced; verify destination trace'};await new Promise(r=>setTimeout(r,2500));}
    throw new Error('Wallet inclusion timeout; send remains ambiguous and must not be repeated');
-  }finally{journal.close();closeSync(fd);unlinkSync(lock);}
+  }finally{try{journal?.close();}finally{closeSync(fd);unlinkSync(lock);}}
  }};
 }

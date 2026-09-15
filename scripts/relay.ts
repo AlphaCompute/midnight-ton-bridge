@@ -19,8 +19,13 @@ if(command==='claim'){
  if(canonical(entries[0]!.receipt)!==canonical(entries[1]!.receipt))throw new Error('observers did not agree on the same transfer');
  for(const {attestation:a} of entries){a.signature.response=BigInt(a.signature.response);a.signature.announcement={x:BigInt(a.signature.announcement.x),y:BigInt(a.signature.announcement.y)};}
  if(network()!==config.network)throw new Error('provider network differs from bridge config');
- const client=await openMidnight();
- try{const bridge=new BridgeClient(config,{call:async(c,args)=>{const r=await client.call(config.midnightAddress,c,args);return r.public.txId;}});console.log(await bridge.claim(entries[0]!.receipt,entries.map(x=>x.attestation)));}finally{await client.close();}
+ if(!process.argv.includes('--send')){
+  const bridge=new BridgeClient(config,{call:async(circuit,args)=>JSON.stringify({network:config.network,address:config.midnightAddress,circuit,args},(_,v)=>typeof v==='bigint'?v.toString():v)});
+  console.log(await bridge.claim(entries[0]!.receipt,entries.map(x=>x.attestation)));
+ }else{
+  const client=await openMidnight();
+  try{const bridge=new BridgeClient(config,{call:async(c,args)=>{const r=await client.call(config.midnightAddress,c,args);return r.public.txId;}});console.log(await bridge.claim(entries[0]!.receipt,entries.map(x=>x.attestation)));}finally{await client.close();}
+ }
 }else if(command==='release'){
  const config=read(path) as {network:string;domain:string;escrows:[string,string];committee:string[];walletKeyFile:string};
  if(config.network!=='ton-testnet')throw new Error('testnet only');

@@ -7,7 +7,7 @@ Date: 2026-09-14. Scope: the full bridge implementation deployed on testnet; no 
 | Check | Result |
 | --- | --- |
 | TypeScript/build | Passed with strict types and stale-Compact-artifact guard |
-| Automated suite | 14 tests passed, zero failed; includes seeded pool trials and multiple adversarial cases per test |
+| Automated suite | 17 tests passed, zero failed; includes seeded pool trials and multiple adversarial cases per test |
 | TON | Four Tolk contracts and the two unmodified FunC reference contracts compile; TVM lock/claim/retire/release, exact refunds, replay, forged notification/bounce, low notification gas, downstream failure and successful retry pass |
 | Cryptography/arithmetic | Identity/torsion/noncanonical scalar, changed domain/contract/asset/amount/recipient, quorum, cap, replay, dishonest quotient, LP authentication, slippage and donation rejection pass |
 | Operator/persistence | Quota, equivocation, idempotent retry, stop switch, secret permissions, network isolation, pinned TON genesis and durable ambiguous-send tests pass |
@@ -97,3 +97,15 @@ a wallet nor a seed; transaction journals are opened read-only.
 statement that isolated proving time and throughput have not been measured.
 The handoff and narrated-walkthrough generators package the existing finalized
 evidence. External review, publishing and acceptance are tracked separately.
+
+## Follow-up verification - 2026-09-15
+
+Review identified and fixed two relayer behaviors: new TON send IDs can no longer
+bypass an ambiguous wallet send, and Midnight claim relay defaults to preparation
+unless `--send` is supplied. The wallet lock also releases if journal initialization
+fails. Regression tests cover these cases, reserved sequences, malformed journal
+records and preparation without a wallet or reachable endpoint.
+
+Fresh public-chain checks re-read deployed TON code and configuration, the six
+previously finalized Midnight calls, recipient delivery and route accounting. This
+is a new independent readback of the completed round trip, not a new round trip.

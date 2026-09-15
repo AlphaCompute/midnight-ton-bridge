@@ -46,11 +46,11 @@
   "tonVerification": {
     "network": "ton-testnet",
     "block": {
-      "seqno": 84824129,
+      "seqno": 84895549,
       "shard": "-9223372036854775808",
       "workchain": -1,
-      "fileHash": "bpmRTxjspZq6kIIc2DHpmePMN7jkCjXHbX4zRA0gwb8=",
-      "rootHash": "XWgeO/XjAKBWeNlRySwUvyxMeSuVFdDC6mD6czKX5rc="
+      "fileHash": "4+nX4MagxZnQUeFmdOtel4MOiazDo+0wTJNRhkyi7c0=",
+      "rootHash": "vPoF1rPlDFU7hTYjQ81O4qvcCf4794hr2zxQ0iwbBEc="
     },
     "results": [
       {
@@ -59,8 +59,8 @@
         "address": "0:056f48bd15f1c95ccbf0f67b972724f218b6315cfe05f7aa4dd6ccbebd0c6f73",
         "codeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
         "last": {
-          "lt": "96593585000003",
-          "hash": "72D6B9eUJw1bOfM9cYmC29Rl6vtCLrGzSw/vV82SIro="
+          "lt": "96594237000003",
+          "hash": "smDZ5TMWHD14LWi8YJagEml6jxY7Oo2LW/r7v5S4WnI="
         }
       },
       {
@@ -69,8 +69,8 @@
         "address": "0:ab51b7983bf4a781e71a1596614098491a0ebcd090f64de88d497dc08c42ef97",
         "codeHash": "69a765abd7cd9278a10e39d4fd08c336ed683b5b0ccd6ecfeccb513c57290f00",
         "last": {
-          "lt": "96593585000005",
-          "hash": "xK3skEBjUTmG6VSZhTQKP2J/h4uRIl8hO3FGcXxQKLQ="
+          "lt": "96594592000010",
+          "hash": "IQzKoNmpg2ozKC2G4HZkry4w2DUFBDaLExdY7pMCYMY="
         }
       },
       {
@@ -79,8 +79,8 @@
         "address": "0:f482d8e844ac1d5f4a409ab25c343f15ef2081aac3423ba86e49467de656cbb3",
         "codeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
         "last": {
-          "lt": "96593585000004",
-          "hash": "arNoXsGENsp2wfWSRJ0LR/A4QY3kjqcfa+Nv7OSL0QM="
+          "lt": "96594762000005",
+          "hash": "gpLKCXcde/xxCF33ZFitvZDsW1mIGM8D4KFmQNQ8EoY="
         }
       },
       {
@@ -89,8 +89,8 @@
         "address": "0:8e6a42d5124f24b7709633876943ab107ce28766070b448d0a7e0b9f1c5d65e2",
         "codeHash": "69a765abd7cd9278a10e39d4fd08c336ed683b5b0ccd6ecfeccb513c57290f00",
         "last": {
-          "lt": "96593585000006",
-          "hash": "jd9vE2Ox1Dp+ZSNy0fyoHITQpSIFSbTAE9JnffpSqXg="
+          "lt": "96594906000003",
+          "hash": "Is+G7lHhsREycdnQgsg5tV/WMwsJaksuRxL6LkL2kBI="
         }
       }
     ]

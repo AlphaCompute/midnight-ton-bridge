@@ -1,4 +1,4 @@
-# Midnight–TON bridge — engineering handoff
+# Midnight–TON bridge
 
 This repository implements a **bidirectional Midnight–TON token bridge**: two allowlisted TON jetton escrows, Midnight token representations and redemption, a two-asset liquidity pool, a TypeScript SDK, committee signers, relayer commands, recovery tools and a notes starter. The bridge is currently deployed on **TON testnet and Midnight preprod**. It is Apache-2.0 licensed. The GitHub repository is private; changing its visibility is a separate release decision.
 

@@ -2,20 +2,15 @@
 
 **Move tokens between TON and Midnight. Put bridged liquidity to work.**
 
-A bidirectional token bridge with a built-in two-asset liquidity pool, a TypeScript SDK and a complete operator toolkit. Lock jettons on TON, use their representations on Midnight, then redeem them back to TON through a quorum-authorized return path.
+A bidirectional bridge with a two-asset liquidity pool and TypeScript SDK. Lock jettons on TON, use their representations on Midnight, then redeem them back to TON.
 
-[Quick start](#quick-start) · [Deployment guide](docs/deployment.md) · [SDK](#typescript-sdk) · [Starter app](https://github.com/AlphaCompute/midnight-ton-bridge-starter) · [Releases](https://github.com/AlphaCompute/midnight-ton-bridge/releases)
+[Quick start](#quick-start) · [Deployment](docs/deployment.md) · [SDK](#typescript-sdk) · [Starter app](https://github.com/AlphaCompute/midnight-ton-bridge-starter) · [Releases](https://github.com/AlphaCompute/midnight-ton-bridge/releases)
 
-## Built for the complete round trip
+- **Existing tokens:** compatible jetton masters, verified wallet code and no issuer mint authority required.
+- **Built-in liquidity:** supply assets, swap with slippage bounds and earn pool fees.
+- **Operator tools:** transaction journals, signer limits, recovery, accounting checks and Prometheus metrics.
 
-- **Bridge in both directions.** Authenticated TON deposits, quorum-authorized Midnight claims, permanent retirement and verified TON recipient delivery.
-- **Use existing tokens.** Configure compatible jetton masters with pinned wallet code and deterministic address verification. Bridging does not require issuer mint authority.
-- **Supply liquidity and swap.** A two-asset Midnight pool with reserve-ratio checks, slippage bounds, 30 bps swap fees and secret-authorized LP withdrawals.
-- **Integrate with TypeScript.** Build deposit messages, validate claims, redeem tokens, quote swaps and manage liquidity through one SDK.
-- **Operate with visibility.** Durable transaction journals, signer limits, replay protection, trace-based recovery, accounting checks and Prometheus metrics.
-- **Reproduce the results.** Contract tests, proof-backed transactions, public testnet evidence, CI and checksummed release bundles.
-
-The public deployment connects **TON testnet and Midnight preprod**. Its end-to-end flow covers deposits, claims, liquidity provision, swaps, withdrawals and redemption. Explore the [deployment addresses](docs/standard-testnet-deployment.json), [transaction evidence](docs/standard-testnet-evidence.json) and [accounting snapshot](docs/standard-testnet-accounting.json).
+The **TON testnet ↔ Midnight preprod** deployment has completed the full deposit, claim, liquidity, swap, withdrawal and redemption flow. See [addresses](docs/standard-testnet-deployment.json), [transaction evidence](docs/standard-testnet-evidence.json) and [accounting](docs/standard-testnet-accounting.json).
 
 ## How it works
 
@@ -31,28 +26,21 @@ flowchart LR
     E -->|Transfer| T
 ```
 
-Each route pairs two allowlisted TON escrows with an immutable Midnight contract. Two committee signatures authorize each cross-chain mint or release. Route domains, token identities, recipients and amounts are bound into the authorization; operators verify finalized chain records and pinned contract configurations.
+Each route connects two allowlisted TON escrows to an immutable Midnight contract. A **2-of-3 committee** authorizes claims and releases after verifying finalized chain records. Authorizations bind the route, token, recipient and amount.
 
-The contracts use **Compact** on Midnight and **Tolk** on TON. The jetton adapter interoperates with the unmodified TON reference wallet. Midnight representations are unshielded. See [architecture](docs/architecture.md) and the [security model](docs/security-review.md) for protocol details.
+Contracts use **Compact** on Midnight and **Tolk** on TON, with support for the unmodified TON reference jetton wallet. Midnight representations are unshielded. See the [architecture](docs/architecture.md) and [security model](docs/security-review.md).
 
 ## Quick start
 
-Use **Node 24**, npm, bash, curl, tar and shasum. Docker supplies local chain and proof services. Bootstrap supports Linux x86-64/ARM64 and macOS Intel/ARM64.
+Requires **Node 24**, npm, bash, curl, tar, shasum and Docker. See [supported platforms and toolchain details](docs/deployment.md#build-from-a-clean-checkout).
 
 ```sh
 git clone git@github.com:AlphaCompute/midnight-ton-bridge.git
 cd midnight-ton-bridge
 bash scripts/bootstrap.sh
 npm run check
+npm run compile:midnight -- --proof  # Generate keys for Midnight transactions
 ```
-
-Generate proof keys before deploying or sending Midnight transactions:
-
-```sh
-npm run compile:midnight -- --proof
-```
-
-The lockfile and bootstrap scripts pin the toolchain. Build checks detect stale Compact bindings, and `npm run manifest` records source and artifact hashes.
 
 ### Run locally
 
@@ -65,30 +53,13 @@ npm run demo:local
 npm run validate:local
 ```
 
-The local demo exercises Midnight proofs and pool operations. TON execution and cross-chain authorization are exercised in the TVM/Compact test suite. Local services bind to loopback ports **19944** (node), **18088** (indexer) and **16300** (proof server).
+The local demo exercises Midnight proofs and pool operations; the test suite covers TON execution and cross-chain authorization.
 
 ### Deploy to testnet
 
-```sh
-export BRIDGE_NETWORK=preprod
-unset MIDNIGHT_NETWORK BRIDGE_STATE_DIR
-npm run prepare:testnet
-docker compose up -d proof-server
-```
+Follow the [deployment guide](docs/deployment.md#deploy-to-public-testnet) to fund wallets, configure token masters, deploy both chains and verify a complete round trip. It covers existing tokens, optional testnet token issuance and production release requirements.
 
-Follow the [deployment guide](docs/deployment.md) to fund the generated wallets, initialize synchronization, configure token masters and deploy both sides of the route. Choose existing compatible masters or the explicit testnet token-issuance option.
-
-On a freshly deployed route, run the complete flow and verify its results:
-
-```sh
-npm run demo:testnet              # route with explicitly issued testnet tokens
-# Existing funded tokens: npm run demo:testnet -- --existing-balances
-npm run verify:testnet
-npm run reconcile:ton -- all
-npm run check:route
-```
-
-Keep `.state` private and preserve transaction journals between runs. For an interrupted transfer, use the [reconciliation procedure](docs/operations.md) before resubmitting. Network configuration and the production release procedure are covered in the [deployment guide](docs/deployment.md).
+Keep `.state` private and preserve its transaction journals. Reconcile interrupted transfers using the [operator runbook](docs/operations.md) before resubmitting.
 
 ## TypeScript SDK
 
@@ -120,9 +91,7 @@ Install the SDK tarball from the [release bundle](https://github.com/AlphaComput
 
 ### Liquidity
 
-Bridge backing and pool liquidity are accounted for separately. TON deposits back the Midnight representations; LPs supply those representations to the pool. Redemption releases the corresponding TON backing.
-
-The first LP sets the initial reserve ratio. Subsequent deposits follow that ratio, and withdrawals use a private LP secret. Swaps retain a **30 bps fee** in the pool. Amounts remain integer base units across both chains. See [pool mechanics](docs/architecture.md) and [operations](docs/operations.md) for configuration and LP procedures.
+TON deposits back the Midnight representations. Liquidity providers supply those representations to the pool, separately from bridge backing. The first deposit sets the reserve ratio; later deposits follow it. Swaps retain a **0.3% fee** in the pool, and withdrawals require the LP’s private secret. See [pool mechanics](docs/architecture.md) for details.
 
 ## Operations
 
@@ -132,9 +101,7 @@ npm run monitor           # Persistent health checks and metrics
 npm run reconcile:ton -- all
 ```
 
-The monitor exposes loopback `/healthz` and `/metrics` endpoints, persists failure state and detects stale checks. Linux service templates and Prometheus alert rules are included in [infrastructure/monitor](infrastructure/monitor).
-
-Operators have per-transfer and daily signing limits, stop files and durable equivocation protection. Recovery binds to the original pending instruction and a verified failure trace. See the [monitoring guide](docs/monitoring.md), [operator runbook](docs/operations.md) and [transfer recovery guide](docs/standard-recovery.md).
+The monitor serves loopback `/healthz` and `/metrics` endpoints. [Service templates and Prometheus alerts](infrastructure/monitor) support continuous monitoring. Use the [operator runbook](docs/operations.md) for signer limits and reconciliation, and the [recovery guide](docs/standard-recovery.md) for interrupted transfers.
 
 ## Documentation
 

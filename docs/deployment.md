@@ -93,7 +93,7 @@ npm run deploy:ton -- --issue-testnet-tokens --send
 npm run verify:ton
 ```
 
-Use one deployment path per state directory. Token issuance is an explicit testnet setup option, not a bridge requirement. Never represent these token masters as official WHIS or USD1. `deploy:ton` deploys only the reference-wallet adapter; the legacy fixture-wallet route is no longer deployable (see [architecture](architecture.md#legacy-fixture-wallet-route)).
+Use one deployment path per state directory. Token issuance is an explicit testnet setup option, not a bridge requirement. Never represent these token masters as official WHIS or USD1.
 
 The Midnight record contains its address, route domain, verifier hashes and maintenance-authority pin. Its authority has an empty committee and threshold 1: there is no maintenance key capable of upgrading it. The TON plan contains both master/escrow addresses and code/config hashes. Keep caps consistent: the supplied default is 1,000,000,000,000 integer base units per asset.
 
@@ -135,7 +135,7 @@ The two Midnight asset slots preserve integer base units; no decimal conversion 
 
 The future production operator must complete this sequence before a mainnet release can be implemented and deployed:
 
-1. Agree the actual assets, issuer-approved TON master addresses, wallet code/layout, decimals, caps and initial pool ratio. The current bridge adapter supports reference-layout wallets and does not require the legacy custom pending-transfer dictionary or callback. Asset-specific freeze, upgrade and fee behavior still needs review.
+1. Agree the actual assets, issuer-approved TON master addresses, wallet code/layout, decimals, caps and initial pool ratio. The current bridge adapter supports reference-layout wallets. Asset-specific freeze, upgrade and fee behavior still needs review.
 2. Verify the selected assets against the implemented reference adapter; implement a separate adapter only where their behavior differs. Independently review missing notifications, downstream bounce, issuer freeze/upgrade and rejected-transfer behavior. Rerun the full two-chain testnet suite against those exact adapter bytes. Never restore unrestricted committee recovery.
 3. Obtain specialist review of the Schnorr transcript/circuit soundness and independent contract/SDK security review. Resolve findings against the exact source and verifier hashes. The 2-of-3 committee and trusted RPC model must be explicitly accepted or replaced by a different verified design.
 4. Name three independent custodians, validate each public key out of band, configure independent trusted RPC/indexers, per-transfer/daily limits and stop files. Test signer outage, compromise, unavailable gas/DUST and disaster recovery. Fixed immutable committee rotation requires a new route and an accounted migration.

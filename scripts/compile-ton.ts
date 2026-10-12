@@ -17,5 +17,5 @@ export async function compileTon(name: string) {
   return result;
 }
 if (process.argv[1]?.endsWith('compile-ton.ts')) {
-  for (const name of ['escrow', 'escrow-standard', 'test-wallet', 'test-minter', 'reference-wallet', 'reference-minter']) { const r = await compileTon(name); console.log(`${name}: ${r.codeHashHex}`); }
+  for (const name of ['escrow-standard', 'reference-wallet', 'reference-minter']) { const r = await compileTon(name); console.log(`${name}: ${r.codeHashHex}`); }
 }

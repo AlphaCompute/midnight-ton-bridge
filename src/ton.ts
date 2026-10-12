@@ -5,7 +5,7 @@ import { sign } from '@ton/crypto';
 export const OP={
   jettonTransfer:0x0f8a7ea5, internalTransfer:0x178d4519, transferNotification:0x7362d09c, excesses:0xd53276db, bounced:0xffffffff,
   release:0x42524701, refund:0x42524703, restoreFailed:0x42524704, refundUnrecorded:0x42524705,
-  referenceMint:21, legacyMint:0x4d494e54, legacyWalletFailure:0x42524641,
+  referenceMint:21,
 } as const;
 
 export class TonContract implements Contract {
@@ -30,20 +30,15 @@ export function storeQuorum(b:Builder,a:number,c:number,sigA:Buffer,sigB:Buffer)
   if(!Number.isInteger(a)||!Number.isInteger(c)||a<0||a>=c||c>2||sigA.length!==64||sigB.length!==64)throw new Error('invalid quorum');
   return b.storeUint(a,8).storeUint(c,8).storeRef(beginCell().storeBuffer(sigA).endCell()).storeRef(beginCell().storeBuffer(sigB).endCell());
 }
-function initialEscrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap:bigint, recoveryFlags:number) {
+/** Initial data for `escrow-standard.tolk`: refunds, pending and recovered credits. */
+export function escrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap=BRIDGE_CAP) {
   if(domain.length!==32 || keys.length!==3 || keys.some(k=>k.length!==32) || new Set(keys.map(k=>k.toString('hex'))).size!==3) throw new Error('invalid domain/committee');
   uint64(cap);const keyCell=beginCell();for(const k of keys)keyCell.storeBuffer(k);
   const config=beginCell().storeBuffer(domain).storeRef(keyCell.endCell()).storeAddress(master).storeRef(walletCode).storeUint(cap,64).endCell();
-  // Recovery: next refund, then one empty-dictionary bit per recovery map.
-  const recovery=beginCell().storeUint(0,64).storeUint(0,recoveryFlags);
+  // Recovery: next refund, then empty refunds, pending and recovered dictionaries.
+  const recovery=beginCell().storeUint(0,64).storeUint(0,3);
   return beginCell().storeRef(config).storeUint(0,64).storeUint(0,64).storeUint(0,64).storeRef(recovery.endCell()).storeBit(false).storeBit(false).endCell();
 }
-/** Initial data for `escrow-standard.tolk`: refunds, pending and recovered credits. */
-export function escrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap=BRIDGE_CAP) {return initialEscrowData(domain,keys,master,walletCode,cap,3);}
-/** Initial data for the historical custom-wallet escrow (`escrow.tolk`): refunds and pending only. */
-export function legacyEscrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap=BRIDGE_CAP) {return initialEscrowData(domain,keys,master,walletCode,cap,2);}
-/** Wallet of the historical custom fixture jetton (`test-wallet.tolk`); see `referenceWallet` for TEP-74. */
-export function legacyJettonWallet(owner:Address,master:Address,code:Cell) {return TonContract.create(code,beginCell().storeCoins(0).storeAddress(owner).storeAddress(master).storeRef(code).storeBit(false).endCell());}
 /** TON forwarded with each deposit notification; it pays the escrow's processing gas.
  * A wallet forwarding much less (wallet apps often forward 1 nanoton) leaves the escrow
  * unable to record either a deposit or a refund, stranding the jettons. */

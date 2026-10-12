@@ -44,10 +44,6 @@ An authorized release debits locked inventory and requests a jetton transfer. St
 
 Malformed/cap-exceeding notified deposits receive exact sender/amount refund records. There is no arbitrary committee recovery operation. A sender-wallet credit whose notification was missing or underfunded becomes an exact refund to that sender after 2-of-3 committee attestation of the finalized credit transaction (opcode `0x42524705`, once per credit). Deposits too large for the uint64 ledger are returned immediately. Direct issuer minting into an escrow remains unsupported inventory.
 
-### Legacy fixture-wallet route
-
-The first testnet route used a custom fixture wallet (`contracts/ton/escrow.tolk` with `test-wallet.tolk` and `test-minter.tolk`). That wallet added a pending dictionary, reported downstream failures to the escrow through a custom callback and enforced a minimum notification gas. It is a fixture-specific layout, not a production jetton adapter, and its callback is not accepted by the reference adapter. Its escrows remain deployed on testnet, so the contract sources and a sandbox test are kept, but this repository's scripts no longer deploy it. Its records are in [`docs/evidence/legacy/`](evidence/legacy/).
-
 ## Persistence and operations
 
 The SQLite WAL journal keeps immutable receipt payloads, prepared transaction bytes and IDs. Compare-and-set transitions prevent concurrent workers claiming the same job. A crash after entering `sending` requires exact-transaction reconciliation. Unknown submission status is not retried with a newly built transaction. Source observations may be re-read safely using the same receipt identity. Destination adapters must return finalized outcomes based on transaction evidence, never health checks. Procedures are in the [operator runbook](operations.md#relay-and-reconciliation).

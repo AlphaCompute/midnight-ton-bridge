@@ -2,7 +2,8 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,mkdirSync,rmSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {broadcastUrls,openTon} from '../src/live-ton.js';
+import {broadcastUrls,openTon,relayToTestnet} from '../src/live-ton.js';
+import {TON_TESTNET_ZERO_STATE} from '../src/ton-network.js';
 import {withEnv,withTempDir} from './helpers/env.js';
 
 test('TON sender takes the wallet lock before its journal and releases it when journal initialization fails',async()=>withTempDir(dir=>
@@ -25,4 +26,19 @@ test('signed TON messages are relayed through toncenter as well as the reading R
  assert.deepEqual(broadcastUrls({}),['https://testnet.toncenter.com/api/v2/sendBoc']);
  assert.deepEqual(broadcastUrls({TON_BROADCAST_URLS:' https://a/sendBoc , https://b/sendBoc '}),['https://a/sendBoc','https://b/sendBoc']);
  assert.deepEqual(broadcastUrls({TON_BROADCAST_URLS:''}),[]);
+});
+
+test('a signed message is relayed only to an endpoint that proves it serves TON testnet',async()=>{
+ const calls:string[]=[];
+ const endpoint=(root:string|null,sendStatus=200)=>(async(input:string|URL|Request,init?:RequestInit)=>{const url=String(input);calls.push(`${init?.method??'GET'} ${url}`);
+  if(url.includes('/getMasterchainInfo'))return root===null?new Response('down',{status:503}):Response.json({ok:true,result:{init:{root_hash:root}}});
+  return new Response('{}',{status:sendStatus});}) as typeof fetch;
+ await relayToTestnet('https://t.example/api/v2/sendBoc?api_key=k','Ym9j',endpoint(TON_TESTNET_ZERO_STATE));
+ assert.deepEqual(calls,['GET https://t.example/api/v2/getMasterchainInfo?api_key=k','POST https://t.example/api/v2/sendBoc?api_key=k']);
+ for(const [root,why] of [['mainnet-zero-state','mainnet or unknown chain'],[null,'chain identity unavailable']] as const){
+  calls.length=0;await assert.rejects(()=>relayToTestnet('https://m.example/api/v2/sendBoc','Ym9j',endpoint(root)),/not the pinned TON testnet/,why);
+  assert(!calls.some(c=>c.startsWith('POST')),`${why}: nothing is posted`);
+ }
+ await assert.rejects(()=>relayToTestnet('https://t.example/api/v2/other','Ym9j',endpoint(TON_TESTNET_ZERO_STATE)),/must end in \/sendBoc/);
+ await assert.rejects(()=>relayToTestnet('https://t.example/api/v2/sendBoc','Ym9j',endpoint(TON_TESTNET_ZERO_STATE,500)),/rejected the message: HTTP 500/);
 });

@@ -27,6 +27,10 @@ test('standard escrow: capacity refunds, payload forms, excesses and unknown ope
  const excess=await r.escrow.send(r.attacker.getSender(),beginCell().storeUint(OP.excesses,32).storeUint(0,64).endCell());assert.equal(exitOf(excess,r.escrow.address),0);
  const unknown=await r.escrow.send(r.attacker.getSender(),beginCell().storeUint(0x12345678,32).endCell());assert.equal(exitOf(unknown,r.escrow.address),400);
  const topUp=await r.escrow.send(r.attacker.getSender(),Cell.EMPTY);assert.equal(exitOf(topUp,r.escrow.address),0);
+ // A transfer notification not sent by the escrow's own jetton wallet records nothing.
+ const forged=beginCell().storeUint(OP.transferNotification,32).storeUint(0,64).storeCoins(500n).storeAddress(r.attacker.address).storeBit(false).storeBuffer(to).endCell();
+ assert.equal(exitOf(await r.escrow.send(r.attacker.getSender(),forged),r.escrow.address),401);
+ assert.equal(await r.escrow.getNumber('locked'),900n);assert.equal(await r.escrow.getNumber('depositCount'),2n);assert.equal(await r.escrow.getNumber('refundCount'),3n);
  // A refund needs enough TON to pay for the outgoing jetton transfer.
  assert.equal(exitOf(await r.escrow.send(r.attacker.getSender(),refundBody(0n),toNano('0.1')),r.escrow.address),403);
 });
@@ -51,8 +55,6 @@ test('standard escrow: release guards fail closed',async()=>{
  assert.equal(await send(ok),0);
  assert.equal(await r.escrow.getNumber('locked'),400n);assert.equal(await r.balance(r.wallet),9600n);
  assert.equal(await send(ok),406);
- // No privileged callback from the legacy custom wallet is accepted by this adapter.
- assert.equal(await send(beginCell().storeUint(OP.legacyWalletFailure,32).storeUint(1,64).storeCoins(100).endCell()),400);
  assert.equal(await r.escrow.getNumber('locked'),400n);
 });
 

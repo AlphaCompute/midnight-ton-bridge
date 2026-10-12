@@ -13,7 +13,7 @@ npm --prefix examples/notes ci && npm --prefix examples/notes test   # notes sta
 
 | Area | Covered |
 | --- | --- |
-| TON contracts | The reference-wallet adapter against the unmodified upstream FunC wallet and minter: deposits, release, exact-sender refunds, capacity and oversize returns, payload forms, `excesses`, unknown operations, invalid asset pins, actual recipient rejection with the complete source/rejection/bounce trace, wrong amount/query, forged evidence, restoration replay, successful retry and unrecorded-credit refunds. The legacy fixture-wallet escrow keeps its own sandbox test. |
+| TON contracts | The reference-wallet adapter against the unmodified upstream FunC wallet and minter: deposits, release, exact-sender refunds, capacity and oversize returns, payload forms, `excesses`, unknown operations, invalid asset pins, actual recipient rejection with the complete source/rejection/bounce trace, wrong amount/query, forged evidence, forged transfer notifications, restoration replay, successful retry and unrecorded-credit refunds. |
 | Cross-chain | TVM plus the compiled Midnight runtime: lock, claim, retire, release and adversarial rejection; an SDK-driven standard-route end-to-end test through observed receipt, claim, redemption, release and delivery. |
 | Cryptography/arithmetic | Identity, torsion and noncanonical Schnorr scalars; changed domain, contract, asset, amount or recipient; quorum, cap and replay; dishonest division witnesses; LP authentication, slippage and donation rejection; seeded pool trials. |
 | Retirement | Hashed retirement IDs resist replay and front-running; reverse signers pin verifier keys, maintenance authority and domain. |
@@ -48,9 +48,7 @@ The current route (domain `784780e3…`, Midnight `e666f576…`) runs escrow cod
 
 Routes deployed earlier on the reference adapter are preserved in their state archives and are not used for new deposits. These are escrow code `69a765…`, and a first route with the current escrow code but the previous redemption circuit.
 
-The existing-master planning path was separately run against the public masters, without issuance or broadcast. The monitor was run against the deployed route: `/healthz` returned healthy and Prometheus reported zero consecutive failures; graceful stop and restart retained durable state. Funding came from test faucets. The demonstration committee is held on one host, as recorded in the evidence; it is not independent custody.
-
-The earlier legacy fixture-wallet route also completed a round trip; it is historical and no longer deployable from this repository. Its records are in [`docs/evidence/legacy/`](evidence/legacy/) (see [architecture](architecture.md#legacy-fixture-wallet-route)).
+The existing-master planning path was run against the public masters, without issuance or broadcast, before the contract sources were simplified; it has not been re-run from current source, whose escrow code hash differs. `npm run check:route` (the monitor's health probe) was re-run against this route on 2026-10-12 at 19:51 UTC from the merged cleanup: both assets settled (backing = `locked` = circulation at 9,900 and 10,000), no issues, journals resolved. Funding came from test faucets. The demonstration committee is held on one host, as recorded in the evidence; it is not independent custody.
 
 ### Incident notes
 

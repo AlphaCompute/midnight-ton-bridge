@@ -2,13 +2,17 @@ pragma language_version 0.23;
 import CompactStandardLibrary;
 
 struct JubjubSchnorrSignature { announcement: JubjubPoint; response: Field; }
+// True for a point in the prime-order Jubjub subgroup: [r-1]P + P is the identity.
+circuit inSubgroup(p: JubjubPoint): Boolean {
+  return ecAdd(ecMul(p, 6554484396890773809930967563523245729705921265872317281365359162392183254198 as Field), p) == ecMulGenerator(0);
+}
 witness scalarParts(value: Field): [Uint<8>, Uint<248>];
 circuit jubjubSchnorrVerify<#N>(msg: Vector<N, Field>, signature: JubjubSchnorrSignature, pk: JubjubPoint): Boolean {
   const [high, low] = scalarParts(signature.response);
   assert(signature.response == (high as Field) * (452312848583266388373324160190187140051835877600158453279131187530910662656 as Field) + (low as Field), "scalar decomposition");
   assert(high < 14 || (high == 14 && low < 222104516725044372704429320860625768980218979470098935457522536959433977015), "noncanonical response");
   assert(signature.announcement != ecMulGenerator(0), "identity announcement");
-  assert(ecAdd(ecMul(signature.announcement, 6554484396890773809930967563523245729705921265872317281365359162392183254198 as Field), signature.announcement) == ecMulGenerator(0), "announcement outside subgroup");
+  assert(inSubgroup(signature.announcement), "announcement outside subgroup");
   const c = (slice<31>(upgradeFromTransient(transientHash<[Field, Field, Field, Field, Vector<N, Field>]>([jubjubPointX(signature.announcement), jubjubPointY(signature.announcement), jubjubPointX(pk), jubjubPointY(pk), msg])), 0) as Uint<248>) as Field;
   return ecMulGenerator(signature.response) == ecAdd(signature.announcement, ecMul(pk, c));
 }
@@ -39,7 +43,7 @@ constructor(d: Bytes<32>, keys: Vector<3, JubjubPoint>, limit: Uint<64>) {
   assert(disclose(keys[0]) != disclose(keys[1]) && disclose(keys[1]) != disclose(keys[2]) && disclose(keys[0]) != disclose(keys[2]), "duplicate committee");
   assert(disclose(keys[0]) != ecMulGenerator(0) && disclose(keys[1]) != ecMulGenerator(0) && disclose(keys[2]) != ecMulGenerator(0), "identity committee key");
   for (const i of 0..3) {
-    assert(ecAdd(ecMul(disclose(keys[i]), 6554484396890773809930967563523245729705921265872317281365359162392183254198 as Field), disclose(keys[i])) == ecMulGenerator(0), "committee outside subgroup");
+    assert(inSubgroup(disclose(keys[i])), "committee outside subgroup");
   }
   domain = disclose(d);
   committee = disclose(keys);
@@ -56,17 +60,21 @@ export circuit claimDigest(d: Bytes<32>, contractId: Bytes<32>, receipt: Bytes<3
   return persistentHash<[Bytes<32>, Bytes<32>, Bytes<32>, Uint<8>, Uint<64>, UserAddress]>([d, contractId, receipt, asset, amount, recipient]);
 }
 
+circuit committeeMember(i: Uint<8>): JubjubPoint {
+  return i == 0 ? committee[0] : (i == 1 ? committee[1] : committee[2]);
+}
+
 export circuit claim(receipt: Bytes<32>, asset: Uint<8>, amount: Uint<64>, recipient: UserAddress,
   a: Uint<8>, b: Uint<8>, sa: JubjubSchnorrSignature, sb: JubjubSchnorrSignature): [] {
   assert(disclose(asset) < 2 && disclose(amount) > 0, "invalid transfer");
   assert(disclose(a) < 3 && disclose(b) < 3 && disclose(a) < disclose(b), "invalid quorum");
   assert(!claimed.member(disclose(receipt)), "replayed receipt");
   const digest = claimDigest(domain, kernel.self().bytes, receipt, asset, amount, recipient);
-  assert(jubjubSchnorrVerify<1>([degradeToTransient(digest)], sa, (disclose(a) == 0 ? committee[0] : (disclose(a) == 1 ? committee[1] : committee[2]))), "invalid signature A");
-  assert(jubjubSchnorrVerify<1>([degradeToTransient(digest)], sb, (disclose(b) == 0 ? committee[0] : (disclose(b) == 1 ? committee[1] : committee[2]))), "invalid signature B");
+  assert(jubjubSchnorrVerify<1>([degradeToTransient(digest)], sa, committeeMember(disclose(a))), "invalid signature A");
+  assert(jubjubSchnorrVerify<1>([degradeToTransient(digest)], sb, committeeMember(disclose(b))), "invalid signature B");
   assert(((disclose(asset) == 0 ? circulating[0] : circulating[1]) as Uint<128>) + (disclose(amount) as Uint<128>) <= (cap as Uint<128>), "supply cap");
   claimed.insert(disclose(receipt));
-  circulating = disclose(asset) == 0 ? [((disclose(asset) == 0 ? circulating[0] : circulating[1]) + disclose(amount)) as Uint<64>, circulating[1]] : [circulating[0], ((disclose(asset) == 0 ? circulating[0] : circulating[1]) + disclose(amount)) as Uint<64>];
+  circulating = disclose(asset) == 0 ? [(circulating[0] + disclose(amount)) as Uint<64>, circulating[1]] : [circulating[0], (circulating[1] + disclose(amount)) as Uint<64>];
   mintUnshieldedToken(tokenDomain(disclose(asset)), disclose(amount), right<ContractAddress, UserAddress>(disclose(recipient)));
 }
 

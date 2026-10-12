@@ -29,6 +29,15 @@ Reproduce with the [local deployment commands](deployment.md#deploy-to-local-tes
 
 ## Public testnet evidence
 
+> **Source versus deployed code.** The contract sources were simplified after this route
+> was deployed. That changes the TON escrow code hash and the Midnight verifier keys, so
+> the current source no longer reproduces the deployed bytecode. The deployed route
+> reproduces from tagged commits: the TON escrow from `deployed-testnet-ton`, and the
+> Midnight contract (whose `redeem` verifier is pinned in the deployment record) from
+> `deployed-testnet-midnight`. `verify:ton`, `check:route` and the signers' verifier pins
+> must be run from those commits against this route. A new route deployed from current
+> source gets new pins.
+
 The reference-wallet route completed the full two-chain round trip and was independently re-read:
 
 - [`testnet-deployment.json`](evidence/testnet-deployment.json): route domain, Midnight address, verifier/authority pins, TON masters, escrows and code/configuration hashes, and the custody label.

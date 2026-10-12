@@ -14,6 +14,29 @@ fun wallet(c: Config): address {
   return AutoDeployAddress {workchain:0, stateInit: {code:c.walletCode, data:data}}.calculateAddress();
 }
 
+/// Committee member `i`'s Ed25519 public key.
+fun committeeKey(c: Config, i: int): int { var k = c.keys.beginParse(); k.skipBits(i * 256); return k.loadUint(256); }
+/// Signatures of committee members `a` and `b` (indices already validated) over `digest`.
+fun assertQuorumSigned(c: Config, digest: int, a: int, b: int, sigA: cell, sigB: cell) {
+  assert(isSignatureValid(digest, sigA.beginParse(), committeeKey(c, a))) throw 407;
+  assert(isSignatureValid(digest, sigB.beginParse(), committeeKey(c, b))) throw 408;
+}
+/// Pays `amount` from the escrow's jetton wallet as outgoing query `q`. A bounce returns
+/// through onBouncedMessage, which restores the pending entry.
+fun sendTransfer(c: Config, q: int, amount: int, destination: address) {
+  createMessage({dest:wallet(c),value:ton("0.1"),bounce:BounceMode.Only256BitsOfBody,
+    body:Transfer {queryId:q,amount:amount as coins,destination:destination,responseDestination:contract.getAddress(),customPayload:null,forwardTonAmount:ton("0.01"),forwardPayload:beginCell().storeBool(false).endCell().beginParse()}
+  }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+}
+/// Undoes a failed outgoing transfer. Pending entry: (id, amount, isRelease, recipient);
+/// for a refund the 256-bit id slot holds the uint64 refund id. A restored release clears
+/// its replay marker, so the same signed release (fixed payee and amount) is valid again.
+fun restorePending(mutate s: Storage, mutate recovery: Recovery, entry: cell) {
+  var p = entry.beginParse(); val id = p.loadUint(256); val amount = p.loadUint(64);
+  if (p.loadBool()) { s.releases.delete(id); s.locked += amount; }
+  else { recovery.refunds.set(id as uint64, beginCell().storeUint(amount,64).storeAddress(p.loadAddress()).endCell()); }
+}
+
 fun onInternalMessage(in: InMessage) {
   if (in.body.isEmpty()) { return; }
   var s = Storage.fromCell(contract.getData());
@@ -34,7 +57,7 @@ fun onInternalMessage(in: InMessage) {
         return;
       }
       var payload = msg.payload;
-      var valid = msg.amount <= c.cap && s.locked + msg.amount <= c.cap;
+      var valid = s.locked + msg.amount <= c.cap;
       var recipient = 0;
       if (payload.remainingBitsCount() < 1) { valid = false; }
       else {
@@ -66,13 +89,9 @@ fun onInternalMessage(in: InMessage) {
       val pCell = recovery.pending.mustGet(q);
       val digest = beginCell().storeUint(op,32).storeAddress(contract.getAddress()).storeUint(c.domain,256)
           .storeRef(beginCell().storeUint(q,64).storeUint(evidence,256).storeRef(pCell).endCell()).endCell().hash();
-      var ka=c.keys.beginParse(); ka.skipBits(a*256); var kb=c.keys.beginParse(); kb.skipBits(b*256);
-      assert(isSignatureValid(digest,sigA.beginParse(),ka.loadUint(256))) throw 407;
-      assert(isSignatureValid(digest,sigB.beginParse(),kb.loadUint(256))) throw 408;
-      var pending=pCell.beginParse(); val receipt=pending.loadUint(256); val amount=pending.loadUint(64);
+      assertQuorumSigned(c, digest, a, b, sigA, sigB);
       recovery.pending.delete(q);
-      if(pending.loadBool()) { s.releases.delete(receipt); s.locked += amount; }
-      else { recovery.refunds.set(receipt as uint64,beginCell().storeUint(amount,64).storeAddress(pending.loadAddress()).endCell()); }
+      restorePending(mutate s, mutate recovery, pCell);
   } else if (op == 0x42524705) {
       // Quorum attests a finalized jetton credit to this escrow's wallet whose notification
       // was never processed (missing or underfunded). It only creates an exact refund to
@@ -86,9 +105,7 @@ fun onInternalMessage(in: InMessage) {
       assert(!recovery.recovered.exists(evidence)) throw 406;
       val digest = beginCell().storeUint(op,32).storeAddress(contract.getAddress()).storeUint(c.domain,256)
           .storeRef(beginCell().storeUint(evidence,256).storeUint(amount,64).storeAddress(from).endCell()).endCell().hash();
-      var ka=c.keys.beginParse(); ka.skipBits(a*256); var kb=c.keys.beginParse(); kb.skipBits(b*256);
-      assert(isSignatureValid(digest,sigA.beginParse(),ka.loadUint(256))) throw 407;
-      assert(isSignatureValid(digest,sigB.beginParse(),kb.loadUint(256))) throw 408;
+      assertQuorumSigned(c, digest, a, b, sigA, sigB);
       recovery.recovered.set(evidence, 1);
       recovery.refunds.set(recovery.nextRefund, beginCell().storeUint(amount,64).storeAddress(from).endCell());
       recovery.nextRefund += 1;
@@ -97,12 +114,8 @@ fun onInternalMessage(in: InMessage) {
       var request = in.body; request.skipBits(32); val id = request.loadUint(64); request.assertEnd();
       var refund = recovery.refunds.mustGet(id).beginParse(); val amount = refund.loadUint(64); val recipient = refund.loadAddress();
       recovery.refunds.delete(id); val q = s.nextRelease; s.nextRelease += 1;
-      // Pending entry: (id, amount, isRelease, recipient). For a refund the 256-bit id slot
-      // holds the uint64 refund id, read back below as `receipt as uint64`.
       recovery.pending.set(q,beginCell().storeUint(id,256).storeUint(amount,64).storeBool(false).storeAddress(recipient).endCell());
-      createMessage({dest:wallet(c),value:ton("0.1"),bounce:BounceMode.Only256BitsOfBody,
-        body:Transfer {queryId:q,amount:amount as coins,destination:recipient,responseDestination:contract.getAddress(),customPayload:null,forwardTonAmount:ton("0.01"),forwardPayload:beginCell().storeBool(false).endCell().beginParse()}
-      }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+      sendTransfer(c, q, amount, recipient);
   } else if (op == 0x42524701) {
       var body = in.body; body.skipBits(32);
       val msg = lazy Release.fromSlice(body);
@@ -113,19 +126,13 @@ fun onInternalMessage(in: InMessage) {
       assert(!s.releases.exists(msg.receipt)) throw 406;
       val digest = beginCell().storeUint(op, 32).storeAddress(contract.getAddress()).storeUint(c.domain, 256)
         .storeRef(beginCell().storeUint(msg.receipt, 256).storeUint(msg.amount, 64).storeAddress(msg.recipient).endCell()).endCell().hash();
-      var ka = c.keys.beginParse(); ka.skipBits(msg.a * 256);
-      var kb = c.keys.beginParse(); kb.skipBits(msg.b * 256);
-      assert(isSignatureValid(digest, msg.sigA.beginParse(), ka.loadUint(256))) throw 407;
-      assert(isSignatureValid(digest, msg.sigB.beginParse(), kb.loadUint(256))) throw 408;
+      assertQuorumSigned(c, digest, msg.a, msg.b, msg.sigA, msg.sigB);
       val q = s.nextRelease;
       s.nextRelease += 1;
       s.releases.set(msg.receipt, 1); // submitted; NOT an assertion of recipient delivery
       recovery.pending.set(q, beginCell().storeUint(msg.receipt, 256).storeUint(msg.amount, 64).storeBool(true).endCell());
       s.locked -= msg.amount;
-      createMessage({dest: wallet(c), value: ton("0.1"), bounce: BounceMode.Only256BitsOfBody,
-        body: Transfer {queryId:q, amount:msg.amount as coins, destination:msg.recipient, responseDestination:contract.getAddress(),
-          customPayload:null, forwardTonAmount:ton("0.01"), forwardPayload:beginCell().storeBool(false).endCell().beginParse()}
-      }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+      sendTransfer(c, q, msg.amount, msg.recipient);
   } else if (op == 0xd53276db) { return; } else { throw 400; }
   s.recovery = recovery.toCell();
   contract.setData(s.toCell());
@@ -139,15 +146,10 @@ fun onBouncedMessage(in: InMessageBounced) {
   b.skipBouncedPrefix();
   if (b.loadUint(32) != 0x0f8a7ea5) { return; }
   val q = b.loadUint(64);
-  assert(recovery.pending.exists(q)) throw 409;
-  var p = recovery.pending.mustGet(q).beginParse();
-  val receipt = p.loadUint(256);
-  val amount = p.loadUint(64);
+  val entry = recovery.pending.get(q);
+  assert(entry.isFound) throw 409;
   recovery.pending.delete(q);
-  // A bounced release clears its replay marker: the same signed release (fixed payee and
-  // amount) becomes valid again, so anyone may resubmit it.
-  if (p.loadBool()) { s.releases.delete(receipt); s.locked += amount; }
-  else { recovery.refunds.set(receipt as uint64,beginCell().storeUint(amount,64).storeAddress(p.loadAddress()).endCell()); }
+  restorePending(mutate s, mutate recovery, entry.loadValue());
   s.recovery = recovery.toCell();
   contract.setData(s.toCell());
 }

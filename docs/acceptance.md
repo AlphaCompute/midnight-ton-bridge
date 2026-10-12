@@ -12,9 +12,9 @@ This tracks the bridge/SDK component against the supplied agreement; it does not
 | Private source and deployment scripts | this checkout and packaging tools | Tagged private GitHub delivery and Foundation access; publication terms confirmed |
 | Hybrid diagrams/API/integration documentation | README, architecture, operations | Reviewer follows instructions without undocumented assistance |
 | Benchmarks/test results | validation report and test/proof evidence | Agree numerical targets; six total-call timings are recorded on named hardware; independently measure isolated proving time and throughput if required |
-| AI-driven security review and passing review | security-review document | Resolve high-risk items for chosen environment; reviewer sign-off; PDF/IPFS and SDK link delivery |
+| AI-driven security review and passing review | Review findings fixed in source and tests | Resolve high-risk items for chosen environment; independent reviewer sign-off and report; SDK link delivery |
 | Bridge Loom demonstration | reproducible test and demo commands | Record narrated video and supply Loom link; code or logs alone are not this artifact |
-| Findings and production roadmap | security review, operations, roadmap below | Foundation review |
+| Findings and production roadmap | architecture scope and trust, operations, roadmap below | Foundation review |
 | Written POC acceptance | not a software artifact | Foundation's explicit written component/overall acceptance |
 | Continuous node operations | separate service | Verify separately; bridge code does not fulfill uptime/reporting/SLA obligations |
 
@@ -27,7 +27,7 @@ This tracks the bridge/SDK component against the supplied agreement; it does not
 5. Retire tokens on Midnight; show the recorded commitment and two independent reverse attestations. Release on TON and inspect recipient jetton delivery, not merely wallet-request submission.
 6. Demonstrate restart/ambiguous-submission reconciliation and explain the exact-sender refunds and authenticated bounce recovery; explain missing-notification limits.
 7. A separate developer installs the SDK and notes scaffold using only delivered documentation. Record machine/tool versions, commands and results.
-8. Deliver source, checksums, evidence, review PDF/IPFS reference, Loom link and production recommendations; obtain written acceptance against the agreed bridge deliverables.
+8. Deliver source, checksums, evidence, independent review report, Loom link and production recommendations; obtain written acceptance against the agreed bridge deliverables.
 
 ## Production roadmap
 

@@ -3,14 +3,15 @@ import {readFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {extname,join,normalize} from 'node:path';
-import {Address,Cell,toNano} from '@ton/core';
+import {Address,Cell} from '@ton/core';
 import {TonClient4} from '@ton/ton';
 import {MidnightBech32m,UnshieldedAddress} from '@midnight-ntwrk/wallet-sdk-address-format';
 import {referenceWallet,validateAssets,type JettonAsset} from '../src/jettons.js';
-import {transferBody,uint64} from '../src/ton.js';
+import {DEPOSIT_ATTACHED_TON,transferBody,uint64} from '../src/ton.js';
 import {quoteSwap} from '../src/midnight.js';
 import {observeTon,type DepositReceipt} from '../src/receipts.js';
 import {assertTonTestnet} from '../src/ton-network.js';
+import {redactProcessOutput} from '../src/midnight-endpoints.js';
 
 /** Public route description. Holds no keys; safe to serve to browsers. */
 export type RouteAsset=JettonAsset&{escrow:string;codeHash:string;configHash:string};
@@ -26,8 +27,6 @@ export type MidnightSnapshot={reserve:[bigint,bigint];circulating:[bigint,bigint
 export interface MidnightReader {snapshot():Promise<MidnightSnapshot>}
 
 const CONFIRMATIONS=3;
-/** TON attached to the sender's jetton wallet; covers the 0.01 TON forwarded to the escrow plus fees. */
-export const DEPOSIT_ATTACHED_TON=toNano('0.1');
 export function loadDeployment(path:string):Deployment{
  const raw=JSON.parse(readFileSync(path,'utf8'));
  const assets=validateAssets(raw.ton.map(({escrow:_e,codeHash:_c,configHash:_h,...a}:RouteAsset)=>a));
@@ -60,7 +59,8 @@ export function liveTon(deployment:Deployment,endpoint=process.env.TON_RPC_URL??
 export async function liveMidnight(deployment:Deployment,url:string,ws:string):Promise<MidnightReader>{
  const [{default:WebSocket},{setNetworkId},{indexerPublicDataProvider},{ledger}]=await Promise.all([
   import('ws'),import('@midnight-ntwrk/midnight-js-network-id'),import('@midnight-ntwrk/midnight-js-indexer-public-data-provider'),import('../build/midnight/contract/index.js')]);
- setNetworkId('preprod');globalThis.WebSocket??=WebSocket as unknown as typeof globalThis.WebSocket;
+ // Configured indexer URLs may carry a hosted-provider token.
+ redactProcessOutput();setNetworkId('preprod');globalThis.WebSocket??=WebSocket as unknown as typeof globalThis.WebSocket;
  const provider=indexerPublicDataProvider(url,ws);
  return {async snapshot(){
   const state=await provider.queryContractState(deployment.midnight);if(!state)throw new Error('bridge contract not found on indexer');
@@ -97,8 +97,11 @@ class HttpError extends Error{constructor(readonly status:number,message:string)
 const PUBLIC=fileURLToPath(new URL('./public/',import.meta.url));
 const TYPES:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
 
-export function createApp(options:{deployment:Deployment;ton:TonReader;midnight?:MidnightReader|undefined;midnightUnavailable?:string;cacheMs?:number}){
- const {deployment:d,ton}=options,cacheMs=options.cacheMs??10000;
+export function createApp(options:{deployment:Deployment;ton:TonReader;midnight?:MidnightReader|undefined;midnightUnavailable?:string;cacheMs?:number;maxInFlight?:number}){
+ const {deployment:d,ton}=options,cacheMs=options.cacheMs??10000,maxInFlight=options.maxInFlight??32;
+ // Every API route except config reaches the TON or Midnight RPC; cap concurrent ones so
+ // a single client cannot use this server to flood those upstream endpoints.
+ let inFlight=0;
  const cache=new Map<string,{at:number;value:Promise<unknown>}>();
  const cached=<T>(key:string,load:()=>Promise<T>):Promise<T>=>{const hit=cache.get(key);if(hit&&Date.now()-hit.at<cacheMs)return hit.value as Promise<T>;
   const value=load();cache.set(key,{at:Date.now(),value});value.catch(()=>cache.delete(key));return value;};
@@ -166,7 +169,9 @@ export function createApp(options:{deployment:Deployment;ton:TonReader;midnight?
      try{body=JSON.parse(raw||'{}');}catch{throw new HttpError(400,'Malformed JSON');}
      if(!body||typeof body!=='object'||Array.isArray(body))throw new HttpError(400,'JSON object required');
     }
-    json(200,await handler(url.searchParams,body));return;
+    if(url.pathname==='/api/config'){json(200,await handler(url.searchParams,body));return;}
+    if(inFlight>=maxInFlight)throw new HttpError(503,'Server busy; retry shortly');
+    inFlight++;try{json(200,await handler(url.searchParams,body));}finally{inFlight--;}return;
    }
    if(url.pathname.startsWith('/api/'))throw new HttpError(404,'Not found');
    if(req.method!=='GET'&&req.method!=='HEAD')throw new HttpError(405,'Method not allowed');

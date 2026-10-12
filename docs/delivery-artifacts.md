@@ -5,7 +5,6 @@ After committing the reviewed source and passing CI:
 ```sh
 npm run build
 node scripts/benchmarks.mjs
-node scripts/review-cid.mjs
 node scripts/prepare-handoff.mjs
 ```
 
@@ -27,14 +26,6 @@ It is an AI-narrated review of completed, independently verified testnet evidenc
 not an attended live screen recording. Review and upload to the authorized Loom
 account, or use the acceptance script to record an attended demonstration if
 required. A local video is not a Loom link or acceptance.
-
-`docs/security-review-ipfs.json` identifies the approved PDF as a single raw
-CIDv1 block. It explicitly records `published: false` and `pinned: false`.
-Computing a CID performs no upload. After publication approval, follow its Kubo
-command, compare the returned CID and retrieve the exact bytes from an independent
-node. Assign pin retention to an operator. See the official
-[Kubo block commands](https://docs.ipfs.tech/reference/kubo/cli/) and
-[content-addressing explanation](https://docs.ipfs.tech/concepts/content-addressing/).
 
 The remaining authoritative inputs and signatures are listed in
 [external release inputs](external-release-inputs.md). Do not replace them with

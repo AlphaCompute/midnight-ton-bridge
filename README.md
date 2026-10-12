@@ -28,7 +28,7 @@ flowchart LR
 
 Each route connects two allowlisted TON escrows to an immutable Midnight contract. A **2-of-3 committee** authorizes claims and releases after verifying finalized chain records. Authorizations bind the route, token, recipient and amount.
 
-Contracts use **Compact** on Midnight and **Tolk** on TON, with support for the unmodified TON reference jetton wallet. Midnight representations are unshielded. See the [architecture](docs/architecture.md) and [security model](docs/security-review.md).
+Contracts use **Compact** on Midnight and **Tolk** on TON, with support for the unmodified TON reference jetton wallet. Midnight representations are unshielded. See the [architecture](docs/architecture.md), including its [scope and trust model](docs/architecture.md#scope-and-trust).
 
 ## Quick start
 
@@ -121,7 +121,6 @@ The monitor serves loopback `/healthz` and `/metrics` endpoints. [Service templa
 | [Architecture](docs/architecture.md) | Contracts, authorization, representations and pool design |
 | [Operations](docs/operations.md) | Wallet state, signing, reconciliation and recovery |
 | [Monitoring](docs/monitoring.md) | Health endpoints, metrics and service installation |
-| [Security model and review](docs/security-review.md) | Trust assumptions, implemented protections and review findings |
 | [Validation](docs/validation.md) | Contract tests, proof execution and deployment evidence |
 | [Benchmarks](docs/benchmarks.json) | Measured public-testnet call durations |
 | [Release packaging](docs/delivery-artifacts.md) | Source, SDK, starter, walkthrough and checksums |

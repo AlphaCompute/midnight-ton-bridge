@@ -97,6 +97,8 @@ fun onInternalMessage(in: InMessage) {
       var request = in.body; request.skipBits(32); val id = request.loadUint(64); request.assertEnd();
       var refund = recovery.refunds.mustGet(id).beginParse(); val amount = refund.loadUint(64); val recipient = refund.loadAddress();
       recovery.refunds.delete(id); val q = s.nextRelease; s.nextRelease += 1;
+      // Pending entry: (id, amount, isRelease, recipient). For a refund the 256-bit id slot
+      // holds the uint64 refund id, read back below as `receipt as uint64`.
       recovery.pending.set(q,beginCell().storeUint(id,256).storeUint(amount,64).storeBool(false).storeAddress(recipient).endCell());
       createMessage({dest:wallet(c),value:ton("0.1"),bounce:BounceMode.Only256BitsOfBody,
         body:Transfer {queryId:q,amount:amount as coins,destination:recipient,responseDestination:contract.getAddress(),customPayload:null,forwardTonAmount:ton("0.01"),forwardPayload:beginCell().storeBool(false).endCell().beginParse()}
@@ -142,6 +144,8 @@ fun onBouncedMessage(in: InMessageBounced) {
   val receipt = p.loadUint(256);
   val amount = p.loadUint(64);
   recovery.pending.delete(q);
+  // A bounced release clears its replay marker: the same signed release (fixed payee and
+  // amount) becomes valid again, so anyone may resubmit it.
   if (p.loadBool()) { s.releases.delete(receipt); s.locked += amount; }
   else { recovery.refunds.set(receipt as uint64,beginCell().storeUint(amount,64).storeAddress(p.loadAddress()).endCell()); }
   s.recovery = recovery.toCell();

@@ -48,6 +48,7 @@ constructor(d: Bytes<32>, keys: Vector<3, JubjubPoint>, limit: Uint<64>) {
 
 export circuit tokenDomain(asset: Uint<8>): Bytes<32> {
   assert(asset < 2, "unknown asset");
+  // 918273645 is a fixed domain-separation tag for token-domain derivation.
   return persistentHash<Vector<2, Field>>([918273645 as Field, asset as Field]);
 }
 

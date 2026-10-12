@@ -3,7 +3,7 @@
     "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext",
     "strict": true, "noUncheckedIndexedAccess": true, "exactOptionalPropertyTypes": true,
     "esModuleInterop": true, "skipLibCheck": true, "noUnusedLocals": true, "declaration": true,
-    "outDir": "dist", "rootDir": "."
+    "outDir": "dist", "rootDir": ".", "noEmit": true
   },
   "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "app/**/*.ts"]
 }

@@ -7,9 +7,10 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "build": "node scripts/build-support.mjs check && tsc && node scripts/build-support.mjs copy",
+    "build": "node scripts/build-support.mjs check && tsc -p tsconfig.build.json && node scripts/build-support.mjs copy",
+    "typecheck": "tsc",
     "test": "node scripts/build-support.mjs check && node --import tsx --test --test-force-exit tests/*.test.ts",
-    "check": "npm run build && npm test",
+    "check": "npm run typecheck && npm run build && npm test",
     "compile:ton": "tsx --env-file-if-exists=.env scripts/compile-ton.ts",
     "compile:midnight": "bash scripts/compile-midnight.sh",
     "prepare:testnet": "tsx --env-file-if-exists=.env scripts/prepare-testnet.ts",

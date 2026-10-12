@@ -1,6 +1,6 @@
 import {Address,beginCell,Cell} from '@ton/core';
 import type {TonClient4} from '@ton/ton';
-import {OP,TonContract,storeQuorum,u64,uint64} from './ton.js';
+import {OP,TonContract,storeQuorum,u64,positiveUint64} from './ton.js';
 import {finalizedBlock} from './ton-network.js';
 import {HEX32} from './encoding.js';
 
@@ -11,7 +11,7 @@ export function validateAssets(value:unknown):[JettonAsset,JettonAsset]{
  const masters=new Set<string>();
  for(const [i,a] of value.entries()){
   if(!a||a.asset!==i||a.adapter!=='tep74-reference'||typeof a.symbol!=='string'||!a.symbol.trim()||a.symbol.length>32||!Number.isInteger(a.decimals)||a.decimals<0||a.decimals>18)throw new Error('Invalid asset identity or metadata');
-  if(typeof a.cap!=='string'||!/^\d+$/.test(a.cap))throw new Error('Invalid asset cap');uint64(BigInt(a.cap));
+  if(typeof a.cap!=='string'||!/^\d+$/.test(a.cap))throw new Error('Invalid asset cap');positiveUint64(BigInt(a.cap));
   const master=Address.parse(a.master);if(master.workChain!==0||masters.has(master.toRawString()))throw new Error('Distinct basechain masters required');masters.add(master.toRawString());
   for(const hash of [a.masterCodeHash,a.walletCodeHash])if(typeof hash!=='string'||!HEX32.test(hash)||hash!==hash.toLowerCase())throw new Error('Invalid code hash');
   if(codeHash(a.walletCodeBoc)!==a.walletCodeHash)throw new Error('Wallet code hash mismatch');
@@ -45,7 +45,7 @@ export async function verifyAsset(client:TonClient4,asset:JettonAsset,owner:Addr
  return {block,master:master.toRawString(),wallet:expected.toRawString(),walletCodeHash:asset.walletCodeHash};
 }
 export function referenceMintBody(owner:Address,amount:bigint,queryId=0n){
- uint64(amount);
+ positiveUint64(amount);
  return beginCell().storeUint(OP.referenceMint,32).storeUint(queryId,64).storeAddress(owner).storeCoins(100_000_000n)
   .storeRef(beginCell().storeUint(OP.internalTransfer,32).storeUint(queryId,64).storeCoins(amount).storeAddress(null).storeAddress(owner).storeCoins(0).storeBit(false).endCell()).endCell();
 }
@@ -59,11 +59,11 @@ export function failureBody(query:bigint,evidence:Buffer,a:number,b:number,sigA:
  return storeQuorum(beginCell().storeUint(OP.restoreFailed,32).storeUint(query,64).storeBuffer(evidence),a,b,sigA,sigB).endCell();
 }
 export function unrecordedDigest(escrow:Address,domain:Buffer,evidence:Buffer,amount:bigint,from:Address){
- uint64(amount);if(domain.length!==32||evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit attestation');
+ positiveUint64(amount);if(domain.length!==32||evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit attestation');
  return beginCell().storeUint(OP.refundUnrecorded,32).storeAddress(escrow).storeBuffer(domain)
  .storeRef(beginCell().storeBuffer(evidence).storeUint(amount,64).storeAddress(from).endCell()).endCell().hash();
 }
 export function unrecordedBody(evidence:Buffer,amount:bigint,from:Address,a:number,b:number,sigA:Buffer,sigB:Buffer){
- uint64(amount);if(evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit evidence');
+ positiveUint64(amount);if(evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit evidence');
  return storeQuorum(beginCell().storeUint(OP.refundUnrecorded,32).storeBuffer(evidence).storeUint(amount,64).storeAddress(from),a,b,sigA,sigB).endCell();
 }

@@ -1,6 +1,6 @@
 import {Address} from '@ton/core';
 import {MidnightBech32m,UnshieldedAddress} from '@midnight-ntwrk/wallet-sdk-address-format';
-import {uint64} from '../src/ton.js';
+import {positiveUint64} from '../src/ton.js';
 import type {Deployment,RouteAsset} from './readers.js';
 
 /** An error whose message is safe to show the client. */
@@ -11,7 +11,7 @@ const invalid=(message:string)=>new HttpError(400,message);
 export function parseUnits(value:unknown,decimals:number):bigint{
  if(typeof value!=='string'||!/^\d+(\.\d+)?$/.test(value.trim()))throw invalid('Enter an amount like 12.5');
  const [whole,frac='']=value.trim().split('.');if(frac.length>decimals)throw invalid(`At most ${decimals} decimal places`);
- try{return uint64(BigInt(whole!)*10n**BigInt(decimals)+BigInt(frac.padEnd(decimals,'0')||'0'));}catch(e){throw invalid((e as Error).message);}
+ try{return positiveUint64(BigInt(whole!)*10n**BigInt(decimals)+BigInt(frac.padEnd(decimals,'0')||'0'));}catch(e){throw invalid((e as Error).message);}
 }
 /** Accepts an unshielded preprod bech32m address or the raw 32-byte hex form. */
 export function parseMidnightRecipient(value:unknown):Buffer{

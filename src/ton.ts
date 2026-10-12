@@ -21,7 +21,7 @@ export class TonContract implements Contract {
  * exceed it, or a locked deposit could become unclaimable. */
 export const BRIDGE_CAP=1_000_000_000_000n;
 /** A positive uint64 amount (the bridge never moves zero). */
-export function uint64(x:bigint) { if(x<=0n || x>=(1n<<64n))throw new Error('amount must be a positive uint64'); return x; }
+export function positiveUint64(x:bigint) { if(x<=0n || x>=(1n<<64n))throw new Error('amount must be a positive uint64'); return x; }
 /** Any uint64, including zero: sequence numbers, IDs and minima. */
 export function u64(x:bigint) { if(x<0n || x>=(1n<<64n))throw new Error('value must be a uint64'); return x; }
 export function assertAsset(asset:unknown):asserts asset is 0|1 { if(asset!==0&&asset!==1)throw new Error('unknown asset'); }
@@ -33,7 +33,7 @@ export function storeQuorum(b:Builder,a:number,c:number,sigA:Buffer,sigB:Buffer)
 /** Initial data for `escrow-standard.tolk`: refunds, pending and recovered credits. */
 export function escrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap=BRIDGE_CAP) {
   if(domain.length!==32 || keys.length!==3 || keys.some(k=>k.length!==32) || new Set(keys.map(k=>k.toString('hex'))).size!==3) throw new Error('invalid domain/committee');
-  uint64(cap);const keyCell=beginCell();for(const k of keys)keyCell.storeBuffer(k);
+  positiveUint64(cap);const keyCell=beginCell();for(const k of keys)keyCell.storeBuffer(k);
   const config=beginCell().storeBuffer(domain).storeRef(keyCell.endCell()).storeAddress(master).storeRef(walletCode).storeUint(cap,64).endCell();
   // Recovery: next refund, then empty refunds, pending and recovered dictionaries.
   const recovery=beginCell().storeUint(0,64).storeUint(0,3);
@@ -46,18 +46,18 @@ export const DEPOSIT_FORWARD_TON=toNano('0.01');
 /** TON to attach when sending a deposit body to the sender's jetton wallet. */
 export const DEPOSIT_ATTACHED_TON=toNano('0.1');
 export function transferBody(queryId:bigint, amount:bigint, destination:Address, response:Address, recipient?:Buffer) {
-  uint64(amount);if(recipient && recipient.length!==32)throw new Error('recipient must be 32 bytes');
+  positiveUint64(amount);if(recipient && recipient.length!==32)throw new Error('recipient must be 32 bytes');
   const b=beginCell().storeUint(OP.jettonTransfer,32).storeUint(queryId,64).storeCoins(amount).storeAddress(destination).storeAddress(response).storeBit(false).storeCoins(DEPOSIT_FORWARD_TON).storeBit(false);
   if(recipient)b.storeBuffer(recipient);return b.endCell();
 }
 export function releaseDigest(escrow:Address,domain:Buffer,receipt:Buffer,amount:bigint,recipient:Address) {
-  uint64(amount);if(domain.length!==32||receipt.length!==32)throw new Error('invalid digest field');
+  positiveUint64(amount);if(domain.length!==32||receipt.length!==32)throw new Error('invalid digest field');
   if(recipient.workChain!==0)throw new Error('only basechain recipients supported');
   return beginCell().storeUint(OP.release,32).storeAddress(escrow).storeBuffer(domain)
     .storeRef(beginCell().storeBuffer(receipt).storeUint(amount,64).storeAddress(recipient).endCell()).endCell().hash();
 }
 export function releaseBody(receipt:Buffer,amount:bigint,recipient:Address,a:number,b:number,sigA:Buffer,sigB:Buffer) {
-  uint64(amount);if(receipt.length!==32||recipient.workChain!==0)throw new Error('invalid release');
+  positiveUint64(amount);if(receipt.length!==32||recipient.workChain!==0)throw new Error('invalid release');
   return storeQuorum(beginCell().storeUint(OP.release,32).storeBuffer(receipt).storeUint(amount,64).storeAddress(recipient),a,b,sigA,sigB).endCell();
 }
 /** Ed25519 signature over any committee digest (release, failure or unrecorded credit). */

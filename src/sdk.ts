@@ -3,7 +3,7 @@ import {type CircuitName,type SchnorrSignature,quoteSwap,verifyClaim,validPoint}
 import {type JubjubPoint} from '@midnight-ntwrk/compact-runtime';
 import {Address} from '@ton/core';
 import {type DepositReceipt} from './escrow.js';
-import {assertAsset,transferBody,u64,uint64} from './ton.js';
+import {assertAsset,transferBody,u64,positiveUint64} from './ton.js';
 import {hex32 as bytes} from './encoding.js';
 import type {TestNetwork} from './environment.js';
 export {DEPOSIT_ATTACHED_TON} from './ton.js';
@@ -31,7 +31,7 @@ export class BridgeClient {
  claimDigest(receipt:DepositReceipt){
   if(receipt.network!=='ton-testnet'||!['0','1'].includes(String(receipt.asset)))throw new Error('invalid route');
   if(Address.parse(receipt.escrow).toRawString()!==Address.parse(this.config.escrows[receipt.asset]).toRawString())throw new Error('wrong escrow');
-  const amount=uint64(BigInt(receipt.amount));
+  const amount=positiveUint64(BigInt(receipt.amount));
   return pureCircuits.claimDigest(bytes(this.config.domain),bytes(this.config.midnightAddress),bytes(receipt.id),BigInt(receipt.asset),amount,{bytes:bytes(receipt.recipient)});
  }
  async claim(receipt:DepositReceipt,attestations:ClaimAttestation[]){
@@ -45,12 +45,12 @@ export class BridgeClient {
  /** Use a fresh random nonce and keep it private until the redemption is final: only
   * its hash is published, so nobody else can retire the same ID first. */
  redeem(nonce:string,asset:0|1,amount:bigint,tonRecipient:string){
-  assertAsset(asset);uint64(amount);
+  assertAsset(asset);positiveUint64(amount);
   const recipient=Address.parse(tonRecipient);if(recipient.workChain!==0)throw new Error('only TON basechain supported');
   return this.transport.call('redeem',[bytes(nonce),BigInt(asset),amount,recipient.hash]);
  }
  quote(input:bigint,reserveIn:bigint,reserveOut:bigint){return quoteSwap(input,reserveIn,reserveOut);}
- swap(asset:0|1,amount:bigint,minOut:bigint,recipient:string){assertAsset(asset);uint64(amount);uint64(minOut);return this.transport.call('swap',[BigInt(asset),amount,minOut,{bytes:bytes(recipient)}]);}
- addLiquidity(lpOwner:string,x:bigint,y:bigint,minShares:bigint){uint64(x);uint64(y);uint64(minShares);return this.transport.call('addLiquidity',[bytes(lpOwner),x,y,minShares]);}
- removeLiquidity(secret:string,shares:bigint,minX:bigint,minY:bigint,recipient:string){uint64(shares);u64(minX);u64(minY);return this.transport.call('removeLiquidity',[bytes(secret),shares,minX,minY,{bytes:bytes(recipient)}]);}
+ swap(asset:0|1,amount:bigint,minOut:bigint,recipient:string){assertAsset(asset);positiveUint64(amount);positiveUint64(minOut);return this.transport.call('swap',[BigInt(asset),amount,minOut,{bytes:bytes(recipient)}]);}
+ addLiquidity(lpOwner:string,x:bigint,y:bigint,minShares:bigint){positiveUint64(x);positiveUint64(y);positiveUint64(minShares);return this.transport.call('addLiquidity',[bytes(lpOwner),x,y,minShares]);}
+ removeLiquidity(secret:string,shares:bigint,minX:bigint,minY:bigint,recipient:string){positiveUint64(shares);u64(minX);u64(minY);return this.transport.call('removeLiquidity',[bytes(secret),shares,minX,minY,{bytes:bytes(recipient)}]);}
 }

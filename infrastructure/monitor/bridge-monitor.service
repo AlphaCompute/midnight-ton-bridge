@@ -21,7 +21,7 @@ ReadWritePaths=/var/lib/bridge-monitor
 RuntimeDirectory=bridge-monitor
 RuntimeDirectoryMode=0700
 # Adjust to the actual private route directory. The monitor needs no wallet keys.
-InaccessiblePaths=-/var/lib/bridge/midnight-test-wallet.json -/var/lib/bridge/ton-test-wallet.json -/var/lib/bridge/demo-operators.json -/var/lib/bridge/wallet-sync.json -/var/lib/bridge/testnet-lp-secret.json -/var/lib/bridge/acton-mnemonic.txt
+InaccessiblePaths=-/var/lib/bridge/midnight-test-wallet.json -/var/lib/bridge/ton-test-wallet.json -/var/lib/bridge/demo-operators.json -/var/lib/bridge/wallet-sync.json -/var/lib/bridge/testnet-lp-secret.json -/var/lib/bridge/acton-mnemonic.txt -/var/lib/bridge/test-committee.json -/var/lib/bridge/demo-lp-secret.json -/var/lib/bridge/fresh-wallet.json
 UMask=0077
 
 [Install]

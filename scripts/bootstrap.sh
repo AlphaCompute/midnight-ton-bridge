@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/toolchain.env
 case "$(uname -s)-$(uname -m)" in
   Darwin-arm64) target=aarch64-apple-darwin; sha=2c2595682ec4f72b3652521f0d1c4124315b169c9e699aae23c1368689e1f750;;
   Darwin-x86_64) target=x86_64-apple-darwin; sha=cb708f57c66319e0536bf40d7b23d0ca6fe4e0a3bf8ab87dd9f69c07b95850a6;;
@@ -9,13 +10,13 @@ case "$(uname -s)-$(uname -m)" in
   *) echo 'Unsupported platform' >&2; exit 1;;
 esac
 mkdir -p .tools
-base="https://github.com/midnightntwrk/compact/releases/download/compact-v0.5.2"
+base="https://github.com/midnightntwrk/compact/releases/download/compact-v$COMPACT_TOOLCHAIN"
 archive="compact-$target.tar.xz"
 curl --fail --location "$base/$archive" --output ".tools/$archive"
 # Checksums are pinned here: one fetched beside the archive cannot detect a replaced release.
 (cd .tools && printf '%s  %s\n' "$sha" "$archive" | shasum -a 256 -c -)
 tar -xJf ".tools/$archive" -C .tools
-".tools/compact-$target/compact" --directory "$PWD/.tools/compact" update 0.31.1
+".tools/compact-$target/compact" --directory "$PWD/.tools/compact" update "$COMPACT_VERSION"
 npm ci
 npm run compile:midnight
 npm run compile:ton

@@ -58,12 +58,14 @@ export function failureBody(query:bigint,evidence:Buffer,a:number,b:number,sigA:
  if(evidence.length!==32)throw new Error('Invalid failure evidence');
  return storeQuorum(beginCell().storeUint(OP.restoreFailed,32).storeUint(query,64).storeBuffer(evidence),a,b,sigA,sigB).endCell();
 }
+/** Any positive jetton amount: refunds are coins-width so oversized credits can be returned. */
+const coinsAmount=(x:bigint)=>{if(x<=0n||x>=1n<<120n)throw new Error('amount must be positive coins');return x;};
 export function unrecordedDigest(escrow:Address,domain:Buffer,evidence:Buffer,amount:bigint,from:Address){
- positiveUint64(amount);if(domain.length!==32||evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit attestation');
+ coinsAmount(amount);if(domain.length!==32||evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit attestation');
  return beginCell().storeUint(OP.refundUnrecorded,32).storeAddress(escrow).storeBuffer(domain)
- .storeRef(beginCell().storeBuffer(evidence).storeUint(amount,64).storeAddress(from).endCell()).endCell().hash();
+ .storeRef(beginCell().storeBuffer(evidence).storeCoins(amount).storeAddress(from).endCell()).endCell().hash();
 }
 export function unrecordedBody(evidence:Buffer,amount:bigint,from:Address,a:number,b:number,sigA:Buffer,sigB:Buffer){
- positiveUint64(amount);if(evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit evidence');
- return storeQuorum(beginCell().storeUint(OP.refundUnrecorded,32).storeBuffer(evidence).storeUint(amount,64).storeAddress(from),a,b,sigA,sigB).endCell();
+ coinsAmount(amount);if(evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit evidence');
+ return storeQuorum(beginCell().storeUint(OP.refundUnrecorded,32).storeBuffer(evidence).storeCoins(amount).storeAddress(from),a,b,sigA,sigB).endCell();
 }

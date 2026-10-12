@@ -10,7 +10,8 @@ export function midnightEndpoints(network:Network,env:NodeJS.ProcessEnv=process.
   indexer:env.MIDNIGHT_INDEXER_URL??'http://127.0.0.1:18088/api/v3/graphql',indexerWS:env.MIDNIGHT_INDEXER_WS??'ws://127.0.0.1:18088/api/v3/graphql/ws',proofServer};
  if(network!=='preprod')throw new Error('test networks only');
  const token=env.BLOCKFROST_PROJECT_ID?.trim(),blockfrost=(url:string|undefined,fallback:string)=>{
-  if(url)return url;if(!token)throw new Error('Set BLOCKFROST_PROJECT_ID to a Midnight Preprod project ID (or set every MIDNIGHT_* endpoint)');
+  // An explicit URL may carry its own provider token; redact output before it can be logged.
+  if(url){if(url.includes('project_id='))redactProcessOutput();return url;}if(!token)throw new Error('Set BLOCKFROST_PROJECT_ID to a Midnight Preprod project ID (or set every MIDNIGHT_* endpoint)');
   if(!token.startsWith('nightpreprod'))throw new Error('BLOCKFROST_PROJECT_ID is not a Midnight Preprod project ID');
   redactProcessOutput();return withProjectId(fallback,token);};
  return {node:blockfrost(env.MIDNIGHT_NODE_URL,'https://rpc.midnight-preprod.blockfrost.io'),nodeWS:blockfrost(env.MIDNIGHT_NODE_WS,'wss://rpc.midnight-preprod.blockfrost.io'),

@@ -13,7 +13,7 @@ npm --prefix examples/notes ci && npm --prefix examples/notes test   # notes sta
 
 | Area | Covered |
 | --- | --- |
-| TON contracts | The reference-wallet adapter against the unmodified upstream FunC wallet and minter: deposits, release, exact-sender refunds, capacity and oversize returns, payload forms, `excesses`, unknown operations, invalid asset pins, actual recipient rejection with the complete source/rejection/bounce trace, wrong amount/query, forged evidence, forged transfer notifications, restoration replay, successful retry and unrecorded-credit refunds. |
+| TON contracts | The reference-wallet adapter against the unmodified upstream FunC wallet and minter: deposits, release, exact-sender refunds, capacity and oversize refunds (paid even when the escrow holds no TON), payload forms, `excesses`, unknown operations, invalid asset pins, actual recipient rejection with the complete source/rejection/bounce trace, wrong amount/query, forged evidence, forged transfer notifications, restoration replay, successful retry and unrecorded-credit refunds. |
 | Cross-chain | TVM plus the compiled Midnight runtime: lock, claim, retire, release and adversarial rejection; an SDK-driven standard-route end-to-end test through observed receipt, claim, redemption, release and delivery. |
 | Cryptography/arithmetic | Identity, torsion and noncanonical Schnorr scalars; changed domain, contract, asset, amount or recipient; quorum, cap and replay; dishonest division witnesses; LP authentication, slippage and donation rejection; seeded pool trials. |
 | Retirement | Hashed retirement IDs resist replay and front-running; reverse signers pin verifier keys, maintenance authority and domain. |
@@ -29,14 +29,7 @@ Reproduce with the [local deployment commands](deployment.md#deploy-to-local-tes
 
 ## Public testnet evidence
 
-> **Source versus deployed code.** The contract sources were simplified after this route
-> was deployed. That changes the TON escrow code hash and the Midnight verifier keys, so
-> the current source no longer reproduces the deployed bytecode. The git tag
-> `deployed-testnet` marks the source that does: it reproduces escrow code `97f574cf…` and
-> all five Midnight verifier pins. Run `verify:ton`, `check:route` and signers for this
-> route from that tag. A route deployed from current source gets new pins.
-
-The current route (domain `784780e3…`, Midnight `e666f576…`) runs escrow code `97f574cf…`, with the unrecorded-credit recovery operation, and the Midnight contract with private redemption nonces. It completed the full two-chain round trip and was independently re-read:
+The current route (domain `187f9579…`, Midnight `cbe61af7…`) was deployed on 2026-10-12 from the current source, which reproduces its escrow code `b04e0069…` and all five Midnight verifier pins. Its escrow records every refund at coins width, recovers unrecorded credits by quorum, and its Midnight contract uses private redemption nonces. It completed the full two-chain round trip and the live stuck-deposit recovery, and was independently re-read:
 
 - [`testnet-deployment.json`](evidence/testnet-deployment.json): route domain, Midnight address, verifier/authority pins, TON masters, escrows and code/configuration hashes, and the custody label.
 - [`testnet-transactions.json`](evidence/testnet-transactions.json): every step of the demonstration, including all six finalized Midnight calls, the two observed TON deposits, the source/recipient message-hash match for the release and final recipient delivery. TON wallet sends were reconciled by exact external-message body hash. `independentReadback` records the re-read pins, immutability, all six calls finalized and collateral matching circulation; `final` records circulation and pool reserves/shares.
@@ -44,11 +37,9 @@ The current route (domain `784780e3…`, Midnight `e666f576…`) runs escrow cod
 - [`testnet-recovery.json`](evidence/testnet-recovery.json): a live [unrecorded credit](operations.md#unrecorded-credits-opcode-0x42524705) produced by `npm run demo:unrecorded`. An underfunded deposit credited the escrow wallet without a record, two committee attestations turned that exact credit into a refund, and the refund's recipient delivery was verified by message hash with `locked` and the escrow balance equal afterwards.
 - [`testnet-assets.json`](evidence/testnet-assets.json): the route's asset registry, usable as a sample `BRIDGE_ASSETS_FILE`. These are valueless testnet tokens, not WHIS or USD1.
 
-**Resilience exercised live.** One TON RPC stopped relaying sends, and two signed messages expired without being included. `reconcile:ton` proved them dead from the unconsumed wallet sequence. `demo:testnet -- --resume` then continued without repeating any executed step, and the resend was relayed through a second endpoint (`TON_BROADCAST_URLS`).
+**Resilience exercised live** (on the previous route). One TON RPC stopped relaying sends, and two signed messages expired without being included. `reconcile:ton` proved them dead from the unconsumed wallet sequence. `demo:testnet -- --resume` then continued without repeating any executed step, and the resend was relayed through a second endpoint (`TON_BROADCAST_URLS`).
 
-Routes deployed earlier on the reference adapter are preserved in their state archives and are not used for new deposits. These are escrow code `69a765…`, and a first route with the current escrow code but the previous redemption circuit.
-
-The existing-master planning path was run against the public masters, without issuance or broadcast, before the contract sources were simplified; it has not been re-run from current source, whose escrow code hash differs. `npm run check:route` (the monitor's health probe) was re-run against this route on 2026-10-12 at 19:51 UTC from the merged cleanup: both assets settled (backing = `locked` = circulation at 9,900 and 10,000), no issues, journals resolved. Funding came from test faucets. The demonstration committee is held on one host, as recorded in the evidence; it is not independent custody.
+Earlier routes are preserved in their state archives and are not used for new deposits: escrow code `69a765…`, and two routes with escrow code `97f574cf…` (the first with the previous redemption circuit). The existing-master planning path was last run against public masters before the escrow changed; rerun `deploy:ton` without `--send` against your masters to plan a route. `npm run check:route -- --publish` recorded the current route settled on 2026-10-12: backing, `locked` and circulation equal at 9,900 and 10,000, no issues, journals resolved. Funding came from test faucets. The demonstration committee is held on one host, as recorded in the evidence; it is not independent custody.
 
 ### Incident notes
 

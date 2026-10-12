@@ -11,30 +11,36 @@ const id=process.argv[2];if(!id)throw new Error('usage: npm run reconcile:ton --
 const j=new Journal(statePath('ton-transactions.sqlite')),client=tonClient();
 try{
  const matching=j.pending().filter(r=>id==='all'||r.id===id);
- if(!matching.length)throw new Error('No matching unresolved transaction');
+ if(!matching.length){if(id==='all'){console.log('No unresolved TON transactions');process.exit(0);}throw new Error('No matching unresolved transaction');}
  // openTon broadcasts only after entering `sending`, so a `prepared` entry was never sent.
  for(const row of matching.filter(r=>r.stage==='prepared')){j.move(row.id,'prepared','rejected',{error:'never broadcast'});console.log(row.id,'never broadcast; safe to prepare a new send');}
  const rows=matching.filter(r=>r.stage!=='prepared');
  const head=await client.getLastBlock();assertTonTestnet(head);const block=head.last.seqno-TON_FINALITY_DEPTH,unresolved:string[]=[];
  for(const row of rows){
-  const payload=JSON.parse(row.payload),wallet=Address.parse(payload.wallet);let last=(await client.getAccountLite(block,wallet)).account.last,found=false;
+  const payload=JSON.parse(row.payload),wallet=Address.parse(payload.wallet);let last=(await client.getAccountLite(block,wallet)).account.last,found=false,failedSeen=false;
   for(let page=0;last&&page<64;page++){
    const txs=await client.getAccountTransactions(wallet,BigInt(last.lt),Buffer.from(last.hash,'base64'));if(!txs.length)break;
-   const match=txs.find(r=>r.tx.inMessage?.info.type==='external-in'&&r.tx.inMessage.body.hash().toString('hex')===row.txid);
+   // Only a successful execution settles the send. A failed one (for example an aborted
+   // action phase) leaves the sequence unconsumed, so the same message may still execute.
+   const match=txs.find(r=>r.tx.inMessage?.info.type==='external-in'&&r.tx.inMessage.body.hash().toString('hex')===row.txid&&txSucceeded(r.tx));
+   failedSeen||=txs.some(r=>r.tx.inMessage?.info.type==='external-in'&&r.tx.inMessage.body.hash().toString('hex')===row.txid);
    if(match){
-    const success=txSucceeded(match.tx);
     const file=statePath(`ton-inclusion-${createHash('sha256').update(row.id).digest('hex')}.json`);
-    writeFileSync(file,JSON.stringify({id:row.id,wallet:wallet.toRawString(),bodyHash:row.txid,transactionHash:match.tx.hash().toString('hex'),block:match.block,status:success?'wallet transaction executed':'wallet transaction rejected',recipientDelivery:'Verify separately using the jetton trace'},null,2));
-    j.move(row.id,row.stage,success?'confirmed':'rejected');console.log(row.id,success?'wallet inclusion confirmed':'rejected');found=true;break;
+    writeFileSync(file,JSON.stringify({id:row.id,wallet:wallet.toRawString(),bodyHash:row.txid,transactionHash:match.tx.hash().toString('hex'),block:match.block,status:'wallet transaction executed',recipientDelivery:'Verify separately using the jetton trace'},null,2));
+    j.move(row.id,row.stage,'confirmed');console.log(row.id,'wallet inclusion confirmed');found=true;break;
    }
    const oldest=txs.reduce((a,b)=>a.tx.lt<b.tx.lt?a:b).tx;if(oldest.prevTransactionLt===0n)break;
    last={lt:oldest.prevTransactionLt.toString(),hash:Buffer.from(oldest.prevTransactionHash.toString(16).padStart(64,'0'),'hex').toString('base64')};
   }
   if(found)continue;
-  // Absence alone is not rejection. Only a provably expired, unconsumed sequence is.
-  const seqno=await client.runMethod(head.last.seqno,wallet,'seqno');
-  if(seqno.exitCode===0&&walletMessageExpired(row.transaction!,payload.seqno,Number(seqno.reader.readBigNumber()),head.now)){
+  // Absence or a failed execution alone is not rejection. Only a provably expired, unconsumed sequence is.
+  const seqno=await client.runMethod(head.last.seqno,wallet,'seqno'),current=seqno.exitCode===0?Number(seqno.reader.readBigNumber()):-1;
+  if(current>=0&&walletMessageExpired(row.transaction!,payload.seqno,current,head.now)){
    j.move(row.id,row.stage,'rejected',{error:'expired: wallet sequence unconsumed after valid_until'});console.log(row.id,'expired without execution; safe to prepare a new send');
+  }else if(failedSeen&&current>payload.seqno){
+   // It ran and failed, then another message used its sequence; a later success of this
+   // message would be newer than the failure and would have been found above.
+   j.move(row.id,row.stage,'rejected',{error:'failed execution; sequence since consumed by another message'});console.log(row.id,'failed and superseded; safe to prepare a new send');
   }else unresolved.push(row.id);
  }
  if(unresolved.length)throw new Error(`Exact transaction(s) ${unresolved.join(', ')} not found in scanned history and not provably expired; remain unresolved`);

@@ -29,6 +29,8 @@ const commands={
   writeFileSync(`${EVIDENCE}/benchmarks.json`,JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report.summary));
  },
  handoff(){
+  // The source archive is HEAD while the SDK is packed from the working tree; they must match.
+  if(execFileSync('git',['status','--porcelain','--untracked-files=no'],{encoding:'utf8'}).trim())throw new Error('Uncommitted changes: commit or stash them before building a handoff');
   const root=resolve('output/handoff');mkdirSync(root,{recursive:true});
   const head=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
   const starter=join(root,'notes-starter');mkdirSync(starter,{recursive:true});
@@ -77,7 +79,9 @@ const commands={
   if(!arg)throw new Error('usage: node scripts/release.mjs check-package PACK_JSON');
   const [pack]=readJson(arg);
   for(const {path:p} of pack.files){
-   const parts=p.split('/');if(parts.some(x=>['.state','.tools','node_modules','output'].includes(x))||parts.at(-1)==='.env'||p.endsWith('secret.json'))throw new Error(`Private or generated local path in package: ${p}`);
+   const parts=p.split('/'),name=parts.at(-1)??'';
+   // Wallet state, seeds, journals, provider tokens and local tooling never ship.
+   if(parts.some(x=>['.state','.tools','.claude','.acton','node_modules','output'].includes(x))||(/^\.env(\.|$)/.test(name)&&name!=='.env.example')||/(secret|mnemonic)[^/]*$|\.mnemonic$|^wallets\.toml$|\.sqlite(-shm|-wal)?$|\.lock$/.test(name))throw new Error(`Private or generated local path in package: ${p}`);
   }
   for(const required of ['dist/src/sdk.js','dist/build/midnight/contract/index.js','LICENSE','docs/operations.md','examples/notes/env.example','examples/notes/index.html'])if(!pack.files.some(x=>x.path===required))throw new Error(`Missing ${required}`);
   console.log(`Package passed: ${pack.files.length} files, ${pack.size} bytes, ${pack.shasum}`);

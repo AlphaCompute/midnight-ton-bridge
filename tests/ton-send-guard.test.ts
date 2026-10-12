@@ -38,3 +38,11 @@ test('a logical TON send may be retried only after every earlier attempt is a pr
  put('release:x#2','sending');assert.throws(()=>nextAttemptId(get,'release:x'),/reconcile/);
  put('release:x#2','rejected');assert.equal(nextAttemptId(get,'release:x'),'release:x#3');
 });
+
+test('a confirmed send is retried only with explicit on-chain proof, and never past an unresolved attempt',()=>{
+ const rows=new Map<string,Entry>(),get=(id:string)=>rows.get(id),put=(id:string,stage:Entry['stage'])=>rows.set(id,{id,stage,payload:'{}',transaction:null,txid:null,error:null});
+ put('release:x','confirmed');
+ assert.throws(()=>nextAttemptId(get,'release:x'),/reconcile/);
+ assert.equal(nextAttemptId(get,'release:x',{afterConfirmed:true}),'release:x#2');
+ put('release:x#2','submitted');assert.throws(()=>nextAttemptId(get,'release:x',{afterConfirmed:true}),/reconcile/);
+});

@@ -8,7 +8,8 @@ import {keyPairFromSeed} from '@ton/crypto';
 import {newSigningKey,verifyingKey,signClaim} from '../src/midnight.js';
 import {observeTonDeposit,verifyEscrowPins,type EscrowPins} from '../src/escrow.js';
 import {BridgeClient,type BridgeConfig} from '../src/sdk.js';
-import {openIndexer} from '../src/midnight-indexer.js';
+import {assertMidnightFinalized,openIndexer} from '../src/midnight-indexer.js';
+import {midnightEndpoints} from '../src/midnight-endpoints.js';
 import {verifyRedemption,type MidnightPins,type RedemptionRequest} from '../src/redemptions.js';
 import {signTonDigest} from '../src/ton.js';
 import {finalizedBlock,tonClient} from '../src/ton-network.js';
@@ -47,12 +48,22 @@ if(command==='keygen'){
  console.log(toJson({receipt,attestation:{signer:config.signer,signature:signClaim(digest,BigInt(secret.midnight))}}));
 }else if(command==='attest-redemption'){
  usage('attest-redemption CONFIG REQUEST_JSON');
- const config=readJson<Signer&{network:TestNetwork;indexer:string;indexerWS:string;address:string;pins:MidnightPins;escrows:[string,string];committee:string[]}>(configPath!);
+ const config=readJson<Signer&{network:TestNetwork;indexer:string;indexerWS:string;node?:string;tonRpc?:string;address:string;pins:MidnightPins;escrows:[EscrowPins&{master:string},EscrowPins&{master:string}];committee:string[]}>(configPath!);
  if(config.network!=='local'&&config.network!=='preprod')throw new Error('test networks only');
  const key=tonSigner(config,config.committee),provider=openIndexer(config.network,config),request=readJson<RedemptionRequest>(arg!);
  const tx=await provider.watchForTxData(request.transactionId);if(tx.status!=='SucceedEntirely')throw new Error('transaction failed');
+ await assertMidnightFinalized(config.node??midnightEndpoints(config.network).node,tx.blockHeight,tx.blockHash);
  const state=await provider.queryContractState(config.address,{type:'blockHash',blockHash:tx.blockHash});if(!state)throw new Error('contract not found');
- const digest=verifyRedemption(state,config.pins,request,config.escrows);
+ // The release goes to escrows[asset]. Confirm on chain that each pinned escrow belongs to
+ // this route and committee and holds the expected token, so a swapped config cannot pay
+ // one asset for a retirement of the other.
+ if(config.escrows?.length!==2)throw new Error('escrows must pin both asset escrows');
+ const ton=tonClient(config.tonRpc?{endpoint:config.tonRpc}:undefined),{block}=await finalizedBlock(ton);
+ for(const pin of config.escrows){
+  const onChain=await verifyEscrowPins(ton,block,pin);
+  if(onChain.domain!==config.pins.domain||onChain.committee.join()!==config.committee.join()||!onChain.master.equals(Address.parse(pin.master)))throw new Error(`Escrow ${pin.escrow} does not belong to this route, committee and token`);
+ }
+ const digest=verifyRedemption(state,config.pins,request,[config.escrows[0].escrow,config.escrows[1].escrow]);
  authorizeSignature(config.policy,`release:${config.address}:${request.id}`,digest.toString('hex'),BigInt(request.amount));
  console.log(toJson({request,blockHash:tx.blockHash,blockHeight:tx.blockHeight,signer:config.signer,signature:signTonDigest(digest,key.secretKey).toString('hex')}));
 }else if(command==='attest-recovery'){
@@ -77,7 +88,7 @@ if(command==='keygen'){
   console.log(toJson({kind:'unrecorded',evidence:credit.evidence.toString('hex'),amount:credit.amount.toString(),from:credit.from.toRawString(),block:credit.block,signer:c.signer,signature:signTonDigest(digest,key.secretKey).toString('hex')}));
  }else{
   const result=await client.runMethod(block,escrow,'pending',[{type:'int',value:BigInt(r.query)}]);if(result.exitCode!==0)throw new Error('No pending instruction');
-  const pending=result.reader.readCell(),p=pending.beginParse();p.loadUintBig(256);const amount=p.loadUintBig(64);
+  const pending=result.reader.readCell(),p=pending.beginParse();p.loadUintBig(256);const amount=p.loadCoins();
   const evidence=await observeFailedTransfer(client,assets[r.asset],escrow,BigInt(r.query),amount,r.trace);
   const digest=failureDigest(escrow,Buffer.from(c.domain,'hex'),BigInt(r.query),evidence.evidence,pending);
   authorizeSignature(c.policy,`failed-transfer:${escrow.toRawString()}:${r.query}`,digest.toString('hex'),amount);

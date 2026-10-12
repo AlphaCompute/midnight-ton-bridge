@@ -28,13 +28,19 @@ fun sendTransfer(c: Config, q: int, amount: int, destination: address) {
     body:Transfer {queryId:q,amount:amount as coins,destination:destination,responseDestination:contract.getAddress(),customPayload:null,forwardTonAmount:ton("0.01"),forwardPayload:beginCell().storeBool(false).endCell().beginParse()}
   }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
+/// Records an exact refund to an authenticated sender. Refund and pending amounts are
+/// coins-width, so any jetton amount (including one above the uint64 deposit ledger) can be
+/// refunded; releases stay bounded by the uint64 `locked`.
+fun recordRefund(mutate recovery: Recovery, id: int, amount: int, to: address) {
+  recovery.refunds.set(id as uint64, beginCell().storeCoins(amount).storeAddress(to).endCell());
+}
 /// Undoes a failed outgoing transfer. Pending entry: (id, amount, isRelease, recipient);
 /// for a refund the 256-bit id slot holds the uint64 refund id. A restored release clears
 /// its replay marker, so the same signed release (fixed payee and amount) is valid again.
 fun restorePending(mutate s: Storage, mutate recovery: Recovery, entry: cell) {
-  var p = entry.beginParse(); val id = p.loadUint(256); val amount = p.loadUint(64);
+  var p = entry.beginParse(); val id = p.loadUint(256); val amount = p.loadCoins();
   if (p.loadBool()) { s.releases.delete(id); s.locked += amount; }
-  else { recovery.refunds.set(id as uint64, beginCell().storeUint(amount,64).storeAddress(p.loadAddress()).endCell()); }
+  else { recordRefund(mutate recovery, id, amount, p.loadAddress()); }
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -47,16 +53,8 @@ fun onInternalMessage(in: InMessage) {
       val msg = lazy Deposit.fromSlice(in.body);
       assert(in.senderAddress == wallet(c)) throw 401;
       assert(msg.amount > 0 && msg.from.getWorkchain() == 0) throw 402;
-      if (msg.amount > 18446744073709551615) {
-        // Not representable in the uint64 ledger: return it at once rather than strand it.
-        // The escrow funds this return, so its unused TON comes back here, not to the
-        // sender; otherwise repeated oversized deposits would siphon the escrow's balance.
-        createMessage({dest:wallet(c),value:ton("0.06"),bounce:BounceMode.NoBounce,
-          body:Transfer {queryId:msg.queryId,amount:msg.amount,destination:msg.from,responseDestination:contract.getAddress(),customPayload:null,forwardTonAmount:0,forwardPayload:beginCell().storeBool(false).endCell().beginParse()}
-        }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_IGNORE_ERRORS);
-        return;
-      }
       var payload = msg.payload;
+      // The cap is a uint64, so this also routes amounts above the deposit ledger to a refund.
       var valid = s.locked + msg.amount <= c.cap;
       var recipient = 0;
       if (payload.remainingBitsCount() < 1) { valid = false; }
@@ -75,7 +73,7 @@ fun onInternalMessage(in: InMessage) {
       } else {
         // Unclaimable notification: record an exact refund to its authenticated
         // original sender. No committee can redirect it or select its amount.
-        recovery.refunds.set(recovery.nextRefund, beginCell().storeUint(msg.amount,64).storeAddress(msg.from).endCell());
+        recordRefund(mutate recovery, recovery.nextRefund, msg.amount, msg.from);
         recovery.nextRefund += 1;
       }
   } else if (op == 0x42524704) {
@@ -97,24 +95,24 @@ fun onInternalMessage(in: InMessage) {
       // was never processed (missing or underfunded). It only creates an exact refund to
       // the authenticated original sender; each credit transaction is usable once.
       var body = in.body; body.skipBits(32);
-      val evidence = body.loadUint(256); val amount = body.loadUint(64); val from = body.loadAddress();
+      val evidence = body.loadUint(256); val amount = body.loadCoins(); val from = body.loadAddress();
       val a = body.loadUint(8); val b = body.loadUint(8);
       val sigA = body.loadRef(); val sigB = body.loadRef(); body.assertEnd();
       assert(a < b && b < 3) throw 404;
       assert(amount > 0 && from.getWorkchain() == 0) throw 402;
       assert(!recovery.recovered.exists(evidence)) throw 406;
       val digest = beginCell().storeUint(op,32).storeAddress(contract.getAddress()).storeUint(c.domain,256)
-          .storeRef(beginCell().storeUint(evidence,256).storeUint(amount,64).storeAddress(from).endCell()).endCell().hash();
+          .storeRef(beginCell().storeUint(evidence,256).storeCoins(amount).storeAddress(from).endCell()).endCell().hash();
       assertQuorumSigned(c, digest, a, b, sigA, sigB);
       recovery.recovered.set(evidence, 1);
-      recovery.refunds.set(recovery.nextRefund, beginCell().storeUint(amount,64).storeAddress(from).endCell());
+      recordRefund(mutate recovery, recovery.nextRefund, amount, from);
       recovery.nextRefund += 1;
   } else if (op == 0x42524703) {
       assert(in.valueCoins >= ton("0.15")) throw 403;
       var request = in.body; request.skipBits(32); val id = request.loadUint(64); request.assertEnd();
-      var refund = recovery.refunds.mustGet(id).beginParse(); val amount = refund.loadUint(64); val recipient = refund.loadAddress();
+      var refund = recovery.refunds.mustGet(id).beginParse(); val amount = refund.loadCoins(); val recipient = refund.loadAddress();
       recovery.refunds.delete(id); val q = s.nextRelease; s.nextRelease += 1;
-      recovery.pending.set(q,beginCell().storeUint(id,256).storeUint(amount,64).storeBool(false).storeAddress(recipient).endCell());
+      recovery.pending.set(q,beginCell().storeUint(id,256).storeCoins(amount).storeBool(false).storeAddress(recipient).endCell());
       sendTransfer(c, q, amount, recipient);
   } else if (op == 0x42524701) {
       var body = in.body; body.skipBits(32);
@@ -130,7 +128,7 @@ fun onInternalMessage(in: InMessage) {
       val q = s.nextRelease;
       s.nextRelease += 1;
       s.releases.set(msg.receipt, 1); // submitted; NOT an assertion of recipient delivery
-      recovery.pending.set(q, beginCell().storeUint(msg.receipt, 256).storeUint(msg.amount, 64).storeBool(true).endCell());
+      recovery.pending.set(q, beginCell().storeUint(msg.receipt, 256).storeCoins(msg.amount as coins).storeBool(true).endCell());
       s.locked -= msg.amount;
       sendTransfer(c, q, msg.amount, msg.recipient);
   } else if (op == 0xd53276db) { return; } else { throw 400; }

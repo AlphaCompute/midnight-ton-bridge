@@ -22,3 +22,6 @@ global.libraries.toml
 *.mnemonic
 wallets.toml
 global.wallets.toml
+
+# Local agent worktrees and settings
+.claude/

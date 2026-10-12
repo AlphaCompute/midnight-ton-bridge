@@ -28,12 +28,12 @@ export function openTon(keyFile=statePath('ton-test-wallet.json')){
  if(network()!=='preprod')throw new Error('Live TON actions require BRIDGE_NETWORK=preprod');
  const pair=keyPairFromSeed(Buffer.from(readSecret<{seed:string}>(keyFile).seed,'hex'));
  const wallet=WalletContractV4.create({workchain:0,publicKey:pair.publicKey}),client=tonClient(),opened=client.open(wallet);
- return {client,wallet,opened,send:async(id:string,messages:MessageRelaxed[])=>{
+ return {client,wallet,opened,send:async(id:string,messages:MessageRelaxed[],options:{afterConfirmed?:boolean}={})=>{
   const unlock=acquireLock(statePath('ton-wallet.lock'));let journal:Journal|undefined;
   try{
    journal=new Journal(statePath('ton-transactions.sqlite'));
    assertTonTestnet(await client.getLastBlock());
-   const attempt=nextAttemptId(key=>journal!.get(key),id);
+   const attempt=nextAttemptId(key=>journal!.get(key),id,options);
    const seqno=await opened.getSeqno();
    assertTonSendAvailable(journal.list(),wallet.address.toRawString(),seqno);
    const transfer=wallet.createTransfer({seqno,secretKey:pair.secretKey,messages}),bodyHash=transfer.hash().toString('hex');

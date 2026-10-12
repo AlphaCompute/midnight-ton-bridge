@@ -13,18 +13,23 @@ export const txSucceeded=(tx:Transaction)=>tx.description.type==='generic'&&!tx.
 export const messageHash=(m:Message)=>beginCell().store(storeMessage(m)).endCell().hash();
 export const txLocator=(tx:Transaction):TxLocator=>({lt:tx.lt.toString(),hash:tx.hash().toString('hex')});
 
+/** The most recent page of `address`'s transactions as of finalized `block`. */
+export async function recentTransactions(client:TonClient4,block:number,address:Address):Promise<Transaction[]>{
+ const a=await client.getAccountLite(block,address);if(!a.account.last)return [];
+ return (await client.getAccountTransactions(address,BigInt(a.account.last.lt),Buffer.from(a.account.last.hash,'base64'))).map(r=>r.tx);
+}
 /** Finalized recipient credit and the matching outgoing internal message from the
  * expected jetton sender wallet, both in recent history. */
 export async function verifyJettonDelivery(client:TonClient4,from:Address,to:Address,queryId:bigint,amount:bigint,depth=3){
  const {block}=await finalizedBlock(client,depth);
- const recent=async(address:Address)=>{const a=await client.getAccountLite(block,address);if(!a.account.last)throw new Error('no transaction history');return client.getAccountTransactions(address,BigInt(a.account.last.lt),Buffer.from(a.account.last.hash,'base64'));};
- const destination=await recent(to),source=await recent(from);
- for(const row of destination){const m=row.tx.inMessage;if(!m||m.info.type!=='internal'||m.info.bounced||!m.info.src.equals(from)||!txSucceeded(row.tx))continue;
+ const destination=await recentTransactions(client,block,to),source=await recentTransactions(client,block,from);
+ if(!destination.length)throw new Error('no transaction history');
+ for(const tx of destination){const m=tx.inMessage;if(!m||m.info.type!=='internal'||m.info.bounced||!m.info.src.equals(from)||!txSucceeded(tx))continue;
   const b=m.body.beginParse();if(b.remainingBits<96||b.loadUint(32)!==OP.internalTransfer||b.loadUintBig(64)!==queryId||b.loadCoins()!==amount)continue;
   const hash=messageHash(m);
-  const parent=source.find(r=>txSucceeded(r.tx)&&[...r.tx.outMessages.values()].some(out=>messageHash(out).equals(hash)));
+  const parent=source.find(t=>txSucceeded(t)&&[...t.outMessages.values()].some(out=>messageHash(out).equals(hash)));
   if(!parent)throw new Error('recipient credit has no matching successful sender transaction in recent history');
-  return {block,queryId:queryId.toString(),amount:amount.toString(),from:from.toRawString(),to:to.toRawString(),sourceTx:parent.tx.hash().toString('hex'),recipientTx:row.tx.hash().toString('hex'),messageHash:hash.toString('hex')};
+  return {block,queryId:queryId.toString(),amount:amount.toString(),from:from.toRawString(),to:to.toRawString(),sourceTx:parent.hash().toString('hex'),recipientTx:tx.hash().toString('hex'),messageHash:hash.toString('hex')};
  }
  throw new Error('matching finalized jetton recipient credit not found');
 }
@@ -53,9 +58,11 @@ export async function observeUnrecordedCredit(client:TonClient4,asset:JettonAsse
  const incoming=credit.inMessage;if(!txSucceeded(credit)||!incoming||incoming.info.type!=='internal'||incoming.info.bounced)throw new Error('Not a successful internal credit');
  const body=incoming.body.beginParse();if(body.loadUint(32)!==OP.internalTransfer)throw new Error('Not a jetton internal transfer');
  body.loadUintBig(64);const amount=body.loadCoins(),from=body.loadMaybeAddress();body.loadMaybeAddress();const forward=body.loadCoins();
- if(amount<=0n||amount>=1n<<64n||!from||from.workChain!==0)throw new Error('Credit is not refundable through the ledger');
+ if(amount<=0n||!from||from.workChain!==0)throw new Error('Credit is not refundable to a basechain sender');
  if(!incoming.info.src.equals(referenceWallet(from,master,code).address))throw new Error('Credit was not sent by the original sender wallet');
- const notices=[...credit.outMessages.values()].filter(m=>m.info.type==='internal'&&m.info.dest.equals(escrow));
+ // Only the transfer notification counts: an `excesses` message to the escrow (when it is the
+ // response address) is not a notification and must not block recovery.
+ const notices=[...credit.outMessages.values()].filter(m=>m.info.type==='internal'&&m.info.dest.equals(escrow)&&m.body.beginParse().remainingBits>=32&&m.body.beginParse().preloadUint(32)===OP.transferNotification);
  if(forward===0n){if(notices.length||trace.notification)throw new Error('Zero-forward credit must not notify the escrow');}
  else{
   if(notices.length!==1||!trace.notification)throw new Error('Notification and its escrow transaction are required');

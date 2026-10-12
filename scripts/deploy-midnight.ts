@@ -21,7 +21,9 @@ else{
 if(committee.length!==3)throw new Error('three committee keys required');
 const intentPath=statePath('midnight-deployment-intent.json');
 // Public routes need the agreed domain that the TON deployment will reuse; a local demo may draw one.
-const domain=process.env.BRIDGE_DOMAIN||network()!=='local'?routeDomain():randomBytes(32);
+// A resumed local attempt keeps the domain its intent recorded.
+const savedDomain=()=>existsSync(intentPath)?Buffer.from(readJson<{domain:string}>(intentPath).domain,'hex'):randomBytes(32);
+const domain=process.env.BRIDGE_DOMAIN||network()!=='local'?routeDomain():savedDomain();
 // The intent records which journal entries predate this attempt. The provider journals
 // every transaction before broadcasting it, so an attempt that added no entry (for
 // example one that failed while proving) never reached the chain and may be resumed.

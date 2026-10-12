@@ -1,11 +1,11 @@
 {
   "network": "isolated-local-only",
-  "address": "2043d23f6ed3ffc44482e6715e804ee0fe39f7f6d3c0e27ec49b85c96c86dcc4",
+  "address": "b7623e4c5b598b03a3615469b2259ef20dfb92b65259cd3eda3977a17f56458a",
   "pins": {
-    "domain": "918138188123b2073ab5ac9e5a5b607f83efe78fdcae6e678a1cae23825a424e",
+    "domain": "8677ed4ed7506c6f54e9b673e1392171ae116262361e07788d60545ff99aadf6",
     "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",
     "verifiers": {
-      "claim": "06fd3b5df85a5a056bae8ebd8f46b3268efa6988e714556785deab4b1da0ef86",
+      "claim": "1daa0a2eecdbbce0fbd3eaff08fca3e13c54fd8bbe5bb40a3d4470397a609abd",
       "redeem": "598af0d7ad4a0fc6a3cc8313b55858d026de453826eaafb2155d7595e4eab4d6",
       "addLiquidity": "daed71d2afcd19d6ffd134467605b7571c0381f9e34c4dd8565f53f70e770db8",
       "swap": "16c087e3565666f6bb480a995e3e7a20284f61e732b0abb7edd4ccf34a0194cd",
@@ -15,45 +15,45 @@
   "transactions": [
     {
       "circuit": "claim",
-      "txId": "0005803129747b3b6323a2192ca679d58529910e44cfc32a77e3827c4e240cca40",
-      "blockHeight": 29,
+      "txId": "00981a3f7c1c5a2c057dac252057fcc7a30bb1a15965dcdd81501e7b7a1375dad9",
+      "blockHeight": 15,
       "status": "SucceedEntirely",
-      "blockHash": "de0423cdc5de113ee25143fbb024db813fa8f0ddbfb91129b29f13fdb275dfb9"
+      "blockHash": "08b126d37f7848bf6cd61a94b96eb5d3e324ee5eabe9978370041102a2f78665"
     },
     {
       "circuit": "claim",
-      "txId": "00be928ca1a1a98cf2972e262cfbb2be570dfb800849a3ea9da42d9bfe9eb30a6a",
-      "blockHeight": 36,
+      "txId": "002cca0a08f1d5ab85870ae1886118c91a1741bd1bc6a307ec669734b1923d75d4",
+      "blockHeight": 22,
       "status": "SucceedEntirely",
-      "blockHash": "b0fb9896246968b91636a5f1529a12f499fd9fcd1db939029e72b56873907db2"
+      "blockHash": "d124c3f23bc465c1d9540784e2dd46be5c16e463f55d0ebe68253b68d1c01cc5"
     },
     {
       "circuit": "addLiquidity",
-      "txId": "00b11f008113926cb0416b21e1357632cdffc29666b7b9ab02b59112e3f217eb4b",
-      "blockHeight": 45,
+      "txId": "009af6bab5a445feb8acf41ea81b9d5c886c87268adca658d3060129692ec17abe",
+      "blockHeight": 26,
       "status": "SucceedEntirely",
-      "blockHash": "9a692af8934883e483a902b6f57d4442767ae0663e7b8e26dee3950c46c46c32"
+      "blockHash": "6cea8c92e217a5a4f7b3c01c6455d6c051bb55e3c642861e54c6ee516c000c3b"
     },
     {
       "circuit": "swap",
-      "txId": "00702c4e5040a073b11aa1e85e63400b74d4b119b8ffafb1b8e54d95cc62f9e427",
-      "blockHeight": 50,
+      "txId": "009abacbc26c37e7c731d107c887281c8c0841d215c2576e8a4647583bef672ce4",
+      "blockHeight": 31,
       "status": "SucceedEntirely",
-      "blockHash": "648e8506b58f075abd2349ea8d878007394ecccdfacb57896205d8f9ccdf94d1"
+      "blockHash": "e89be92fffec8e0ed9601eb51199ed76687080a8079ff516f3c44aaf1e0029db"
     },
     {
       "circuit": "removeLiquidity",
-      "txId": "008ac584d01b1fd4d87bd7fa2968c49706642e4022fcdb664a07a1e6144e63aeeb",
-      "blockHeight": 55,
+      "txId": "0076e0503f0abb75c33b8d817547299f2683223fab9add197da2f8a278d8d04334",
+      "blockHeight": 36,
       "status": "SucceedEntirely",
-      "blockHash": "a7149379fec637d196c40ba2d78fecf992d7502cf238d2686ee0a66e4abe3d32"
+      "blockHash": "4f440704ad53637abc79e3cea4f73e8d4fbf1d7405250c4bc26dbe6f70d527e5"
     },
     {
       "circuit": "redeem",
-      "txId": "00562cc816f1602bdad6a2cc43f3c8576a482c4cb88b435599904c9eec7118a290",
-      "blockHeight": 60,
+      "txId": "00409968c3e2555d72cdf644d9eaa684bce04631019997b9002fa0a136473792d5",
+      "blockHeight": 41,
       "status": "SucceedEntirely",
-      "blockHash": "fff20ed888eee7fbe4b5785b74a3ebd5e2a6ee5e2910d16c0959f5894d36dc5e"
+      "blockHash": "d8a949b8fdc6c1db789ff36aec1437abdd755b99fa9f1924e641279214e02be2"
     }
   ],
   "final": {

@@ -1,4 +1,4 @@
-import {assertTonSendAvailable} from './ton-send-guard.js';
+import {assertTonSendAvailable,nextAttemptId} from './ton-send-guard.js';
 import {assertTonTestnet} from './ton-network.js';
 import {readFileSync,openSync,closeSync,unlinkSync} from 'node:fs';
 import {Cell,type MessageRelaxed} from '@ton/core';
@@ -15,14 +15,14 @@ export function openTon(keyFile=statePath('ton-test-wallet.json')){
   try{
    journal=new Journal(statePath('ton-transactions.sqlite'));
    assertTonTestnet(await client.getLastBlock());
-   if(journal.get(id))throw new Error('Existing send attempt; reconcile exact transaction before retrying');
+   const attempt=nextAttemptId(id=>journal!.get(id),id);
    const seqno=await opened.getSeqno();
    assertTonSendAvailable(journal.list(),wallet.address.toRawString(),seqno);
    const transfer=wallet.createTransfer({seqno,secretKey:pair.secretKey,messages});
-   journal.observe(id,JSON.stringify({seqno,wallet:wallet.address.toRawString()}));journal.move(id,'observed','prepared',transfer.toBoc().toString('base64'),transfer.hash().toString('hex'));journal.move(id,'prepared','sending');
-   await opened.send(transfer);journal.move(id,'sending','submitted');
+   journal.observe(attempt,JSON.stringify({seqno,wallet:wallet.address.toRawString()}));journal.move(attempt,'observed','prepared',transfer.toBoc().toString('base64'),transfer.hash().toString('hex'));journal.move(attempt,'prepared','sending');
+   await opened.send(transfer);journal.move(attempt,'sending','submitted');
    const deadline=Date.now()+120000;
-   while(Date.now()<deadline){if(await opened.getSeqno()>seqno)return {id,seqno,bodyHash:transfer.hash().toString('hex'),status:'wallet-sequence-advanced; verify destination trace'};await new Promise(r=>setTimeout(r,2500));}
+   while(Date.now()<deadline){if(await opened.getSeqno()>seqno)return {id:attempt,seqno,bodyHash:transfer.hash().toString('hex'),status:'wallet-sequence-advanced; verify destination trace'};await new Promise(r=>setTimeout(r,2500));}
    throw new Error('Wallet inclusion timeout; send remains ambiguous and must not be repeated');
   }finally{try{journal?.close();}finally{closeSync(fd);unlinkSync(lock);}}
  }};

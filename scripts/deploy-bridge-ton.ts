@@ -2,7 +2,7 @@ import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {Address,beginCell,Cell,internal,toNano} from '@ton/core';
 import {openTon} from '../src/live-ton.js';
 import {network,statePath} from '../src/environment.js';
-import {escrowData,TonContract} from '../src/ton.js';
+import {BRIDGE_CAP,escrowData,TonContract} from '../src/ton.js';
 import {validateAssets,verifyAsset,type JettonAsset} from '../src/jettons.js';
 
 if(network()!=='preprod')throw new Error('Deployments in this release target testnet only');
@@ -17,13 +17,13 @@ if(issue){
  assets=([0,1] as const).map(asset=>{
   const content=beginCell().storeUint(1,8).storeStringTail(`https://example.invalid/bridge-testnet/${domain}/${asset}.json`).endCell();
   const minter=TonContract.create(mc,beginCell().storeCoins(0).storeAddress(t.wallet.address).storeRef(content).storeRef(wc).endCell());minters.push(minter);
-  return {asset,symbol:`BRIDGE-${asset}`,decimals:6,master:minter.address.toRawString(),masterCodeHash:mc.hash().toString('hex'),walletCodeBoc:wc.toBoc().toString('base64'),walletCodeHash:wc.hash().toString('hex'),cap:'1000000000000',adapter:'tep74-reference'};
+  return {asset,symbol:`BRIDGE-${asset}`,decimals:6,master:minter.address.toRawString(),masterCodeHash:mc.hash().toString('hex'),walletCodeBoc:wc.toBoc().toString('base64'),walletCodeHash:wc.hash().toString('hex'),cap:BRIDGE_CAP.toString(),adapter:'tep74-reference'};
  });
 }else{
  if(!process.env.BRIDGE_ASSETS_FILE)throw new Error('Set BRIDGE_ASSETS_FILE to approved assets; token issuance requires explicit --issue-testnet-tokens');
  assets=validateAssets(JSON.parse(readFileSync(process.env.BRIDGE_ASSETS_FILE,'utf8')));
 }
-if(assets.some(a=>BigInt(a.cap)>1_000_000_000_000n))throw new Error('TON cap exceeds this release Midnight deployment cap');
+if(assets.some(a=>BigInt(a.cap)>BRIDGE_CAP))throw new Error('TON cap exceeds this release Midnight deployment cap');
 const ec=code('escrow-standard');
 const contracts=assets.map(a=>TonContract.create(ec,escrowData(Buffer.from(domain,'hex'),committee,Address.parse(a.master),Cell.fromBase64(a.walletCodeBoc),BigInt(a.cap))));
 if(!issue)for(const [i,a]of assets.entries())await verifyAsset(t.client,a,contracts[i]!.address);

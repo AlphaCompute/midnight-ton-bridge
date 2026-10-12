@@ -5,13 +5,14 @@ import {writeFileSync} from 'node:fs';
 import {network,statePath} from '../src/environment.js';
 import {assertTonTestnet} from '../src/ton-network.js';
 import {Journal} from '../src/journal.js';
+import {walletMessageExpired} from '../src/ton-send-guard.js';
 if(network()!=='preprod')throw new Error('TON testnet only');
 const id=process.argv[2];if(!id)throw new Error('usage: npm run reconcile:ton -- ID|all');
 const j=new Journal(statePath('ton-transactions.sqlite')),client=new TonClient4({endpoint:process.env.TON_RPC_URL??'https://testnet-v4.tonhubapi.com'});
 try{
  const rows=j.list().filter(r=>(id==='all'||r.id===id)&&(r.stage==='submitted'||r.stage==='sending'));
  if(!rows.length)throw new Error('No matching unresolved transaction');
- const head=await client.getLastBlock();assertTonTestnet(head);const block=head.last.seqno-3;
+ const head=await client.getLastBlock();assertTonTestnet(head);const block=head.last.seqno-3,unresolved:string[]=[];
  for(const row of rows){
   const payload=JSON.parse(row.payload),wallet=Address.parse(payload.wallet);let last=(await client.getAccountLite(block,wallet)).account.last,found=false;
   for(let page=0;last&&page<64;page++){
@@ -26,6 +27,12 @@ try{
    const oldest=txs.reduce((a,b)=>a.tx.lt<b.tx.lt?a:b).tx;if(oldest.prevTransactionLt===0n)break;
    last={lt:oldest.prevTransactionLt.toString(),hash:Buffer.from(oldest.prevTransactionHash.toString(16).padStart(64,'0'),'hex').toString('base64')};
   }
-  if(!found)throw new Error(`Exact transaction ${row.id} not found in scanned history; remains unresolved`);
+  if(found)continue;
+  // Absence alone is not rejection. Only a provably expired, unconsumed sequence is.
+  const seqno=await client.runMethod(head.last.seqno,wallet,'seqno');
+  if(seqno.exitCode===0&&walletMessageExpired(row.transaction!,payload.seqno,Number(seqno.reader.readBigNumber()),head.now)){
+   j.move(row.id,row.stage,'rejected',null,null,'expired: wallet sequence unconsumed after valid_until');console.log(row.id,'expired without execution; safe to prepare a new send');
+  }else unresolved.push(row.id);
  }
+ if(unresolved.length)throw new Error(`Exact transaction(s) ${unresolved.join(', ')} not found in scanned history and not provably expired; remain unresolved`);
 }finally{j.close();}

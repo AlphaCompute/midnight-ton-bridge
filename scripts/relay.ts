@@ -1,16 +1,14 @@
-import {openTon} from '../src/live-ton.js';
-import {network,readSecret,statePath,stateDirectory} from '../src/environment.js';
-import {readFileSync,mkdirSync} from 'node:fs';
+import {network} from '../src/environment.js';
+import {readFileSync} from 'node:fs';
 import {BridgeClient,type BridgeConfig,type ClaimAttestation} from '../src/sdk.js';
-import {openMidnight} from '../src/live-midnight.js';
 import {type DepositReceipt} from '../src/receipts.js';
 import {type RedemptionRequest} from '../src/redemptions.js';
 import {Address,toNano,internal} from '@ton/core';
-import {TonClient4,WalletContractV4} from '@ton/ton';
-import {keyPairFromSeed,signVerify} from '@ton/crypto';
+import {signVerify} from '@ton/crypto';
 import {releaseBody,releaseDigest} from '../src/ton.js';
-import {Journal} from '../src/journal.js';
 const [command,path,aPath,bPath]=process.argv.slice(2),read=(p:string)=>JSON.parse(readFileSync(p,'utf8'));
+// Buffer.toJSON runs before the replacer, so both forms are rendered as hex.
+const printable=(_:string,v:unknown)=>typeof v==='bigint'?v.toString():v instanceof Uint8Array?Buffer.from(v).toString('hex'):v&&typeof v==='object'&&(v as {type?:unknown}).type==='Buffer'&&Array.isArray((v as {data?:unknown}).data)?Buffer.from((v as {data:number[]}).data).toString('hex'):v;
 if(!path||!aPath||!bPath)throw new Error('usage: npm run relay -- claim|release CONFIG ATTESTATION_A ATTESTATION_B [--send]');
 if(command==='claim'){
  const config=read(path) as BridgeConfig;config.committee=config.committee.map(p=>({x:BigInt(p.x),y:BigInt(p.y)})) as BridgeConfig['committee'];
@@ -20,10 +18,11 @@ if(command==='claim'){
  for(const {attestation:a} of entries){a.signature.response=BigInt(a.signature.response);a.signature.announcement={x:BigInt(a.signature.announcement.x),y:BigInt(a.signature.announcement.y)};}
  if(network()!==config.network)throw new Error('provider network differs from bridge config');
  if(!process.argv.includes('--send')){
-  const bridge=new BridgeClient(config,{call:async(circuit,args)=>JSON.stringify({network:config.network,address:config.midnightAddress,circuit,args},(_,v)=>typeof v==='bigint'?v.toString():v)});
+  const bridge=new BridgeClient(config,{call:async(circuit,args)=>JSON.stringify({network:config.network,address:config.midnightAddress,circuit,args},printable)});
   console.log(await bridge.claim(entries[0]!.receipt,entries.map(x=>x.attestation)));
  }else{
-  const client=await openMidnight();
+  // Wallet providers load heavy SDKs and open state; only --send needs them.
+  const {openMidnight}=await import('../src/live-midnight.js'),client=await openMidnight();
   try{const bridge=new BridgeClient(config,{call:async(c,args)=>{const r=await client.call(config.midnightAddress,c,args);return r.public.txId;}});console.log(await bridge.claim(entries[0]!.receipt,entries.map(x=>x.attestation)));}finally{await client.close();}
  }
 }else if(command==='release'){
@@ -40,7 +39,7 @@ if(command==='claim'){
  if(!process.argv.includes('--send')){console.log(JSON.stringify({network:'ton-testnet',to:escrow.toRawString(),value:toNano('0.2').toString(),body:body.toBoc().toString('base64')}));}
  else{
   if(network()!=='preprod')throw new Error('live releases require BRIDGE_NETWORK=preprod');
-  const client=openTon(config.walletKeyFile);
+  const {openTon}=await import('../src/live-ton.js'),client=openTon(config.walletKeyFile);
   console.log(await client.send(`release:${escrow.toRawString()}:${r.id}`,[internal({to:escrow,value:toNano('0.2'),body})]));
   console.log('Submitted; reconcile the full jetton trace before asserting recipient delivery.');
  }

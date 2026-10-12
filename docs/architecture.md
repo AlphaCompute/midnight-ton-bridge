@@ -38,7 +38,7 @@ The integrated pool supports WHIS/test-USD1 constant-product swaps, a 30-bps ret
 
 An authorized release debits locked inventory and requests a jetton transfer. State `1` means submitted, not recipient delivery. An authenticated immediate bounce restores backing and replay eligibility. The supplied fixture wallet additionally authenticates downstream bounces and reports the matching query/amount to the escrow; the escrow restores that pending release/refund. Source/recipient message matching is required before final delivery is recorded.
 
-Malformed/cap-exceeding notified deposits receive exact sender/amount refund records. There is no arbitrary committee recovery operation. The fixture enforces minimum transfer notification gas. Direct issuer minting or unsupported token paths without notification remain unsupported inventory requiring reviewed asset-specific resolution. The supplied wallet's extra pending dictionary and failure callback make it a fixture-specific layout, not a generic production jetton adapter.
+Malformed/cap-exceeding notified deposits receive exact sender/amount refund records. There is no arbitrary committee recovery operation. The fixture enforces minimum transfer notification gas. On the standard adapter, a sender-wallet credit whose notification was missing or underfunded becomes an exact refund to that sender after 2-of-3 committee attestation of the finalized credit transaction (opcode `0x42524705`, once per credit). Deposits too large for the uint64 ledger are returned immediately. Direct issuer minting remains unsupported inventory. The supplied wallet's extra pending dictionary and failure callback make it a fixture-specific layout, not a generic production jetton adapter.
 
 ## Persistence and operations
 

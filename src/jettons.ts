@@ -54,3 +54,12 @@ export function failureBody(query:bigint,evidence:Buffer,a:number,b:number,sigA:
  if(evidence.length!==32||!Number.isInteger(a)||!Number.isInteger(b)||a<0||a>=b||b>2||sigA.length!==64||sigB.length!==64)throw new Error('Invalid failure quorum');
  return beginCell().storeUint(0x42524704,32).storeUint(query,64).storeBuffer(evidence).storeUint(a,8).storeUint(b,8).storeRef(beginCell().storeBuffer(sigA).endCell()).storeRef(beginCell().storeBuffer(sigB).endCell()).endCell();
 }
+export function unrecordedDigest(escrow:Address,domain:Buffer,evidence:Buffer,amount:bigint,from:Address){
+ uint64(amount);if(domain.length!==32||evidence.length!==32||from.workChain!==0)throw new Error('Invalid unrecorded-credit attestation');
+ return beginCell().storeUint(0x42524705,32).storeAddress(escrow).storeBuffer(domain)
+ .storeRef(beginCell().storeBuffer(evidence).storeUint(amount,64).storeAddress(from).endCell()).endCell().hash();
+}
+export function unrecordedBody(evidence:Buffer,amount:bigint,from:Address,a:number,b:number,sigA:Buffer,sigB:Buffer){
+ uint64(amount);if(evidence.length!==32||from.workChain!==0||!Number.isInteger(a)||!Number.isInteger(b)||a<0||a>=b||b>2||sigA.length!==64||sigB.length!==64)throw new Error('Invalid unrecorded-credit quorum');
+ return beginCell().storeUint(0x42524705,32).storeBuffer(evidence).storeUint(amount,64).storeAddress(from).storeUint(a,8).storeUint(b,8).storeRef(beginCell().storeBuffer(sigA).endCell()).storeRef(beginCell().storeBuffer(sigB).endCell()).endCell();
+}

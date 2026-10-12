@@ -3,7 +3,9 @@ import {readFileSync} from 'node:fs';
 import {randomBytes,createHash} from 'node:crypto';
 import {BridgeClient} from '@alphaton/midnight-ton-bridge/client';
 import {fileURLToPath} from 'node:url';
-export function start(port=3077){
+// Bounded so a local client cannot grow process memory without limit.
+export const MAX_NOTES=1000;
+export function start(port=3077,{maxNotes=MAX_NOTES}={}){
  const notes=new Map();
  const server=createServer(async(req,res)=>{
   res.setHeader('Cache-Control','no-store');res.setHeader('X-Content-Type-Options','nosniff');
@@ -17,6 +19,7 @@ export function start(port=3077){
    const input=JSON.parse(body);
    if(req.url==='/notes'){
     if(typeof input.text!=='string'||input.text.length<1||input.text.length>8192){json(400,{error:'note must be 1–8192 characters'});return;}
+    if(notes.size>=maxNotes){json(507,{error:'note storage full; restart to clear'});return;}
     const id=randomBytes(16).toString('hex'),opening=randomBytes(32),commitment=createHash('sha256').update(opening).update(input.text).digest('hex');
     notes.set(id,{text:input.text,commitment});json(201,{id,commitment,storage:'local process memory; cleared on restart'});return;
    }

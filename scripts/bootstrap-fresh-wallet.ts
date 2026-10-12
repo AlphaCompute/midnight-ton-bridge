@@ -1,4 +1,5 @@
 import {network,statePath,readSecret} from '../src/environment.js';
+import {midnightEndpoints} from '../src/midnight-endpoints.js';
 import {Journal} from '../src/journal.js';
 // One-time recovery for the newly generated, never-used private test wallet.
 // Do not use for a wallet that has ever received shielded assets or generated DUST.
@@ -8,6 +9,7 @@ import {DustAddress} from '@midnight-ntwrk/wallet-sdk/address-format';
 import WebSocket from 'ws';
 import assert from 'node:assert/strict';
 if(network()!=='preprod'||!process.argv.includes('--new-unused-wallet'))throw new Error('Only newly generated, unused preprod wallets may use this helper');
+const endpoints=midnightEndpoints('preprod');
 const fresh=readSecret<{createdAt:string}>(statePath('fresh-wallet.json'));
 if(!Number.isFinite(Date.parse(fresh.createdAt))||Date.now()-Date.parse(fresh.createdAt)>21600000)throw new Error('Fresh-wallet marker expired; use full synchronization');
 if(existsSync(statePath('midnight-wallet.lock'))||existsSync(statePath('midnight-deployment-candidate.json'))||existsSync(statePath('empty-bootstrap-evidence.json')))throw new Error('Wallet is active, already bootstrapped or used');
@@ -16,8 +18,8 @@ const file=statePath('wallet-sync.json'),snapshot=JSON.parse(readFileSync(file,'
 assert.equal(snapshot.network,'preprod');
 assert.equal(Object.keys(shieldedSnapshot.coinHashes).length,0,'Wallet already has shielded history');
 assert.equal(DustLocalState.deserialize(Buffer.from(dustSnapshot.state,'hex')).utxos.length,0,'Wallet already owns DUST');
-const query=async(q:string)=>{const r=await fetch('https://indexer.preprod.midnight.network/api/v3/graphql',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query:q})});if(!r.ok)throw new Error(`HTTP ${r.status} for ${q.slice(0,100)}: ${(await r.text()).slice(0,100)}`);const d:any=await r.json();if(d.errors)throw new Error(JSON.stringify(d.errors));return d.data;};
-const subscribe=(q:string,first=false)=>new Promise<any[]>((resolve,reject)=>{const ws=new WebSocket('wss://indexer.preprod.midnight.network/api/v3/graphql/ws','graphql-transport-ws'),rows:any[]=[];const timer=setTimeout(()=>{ws.close();reject(Error('subscription timeout: '+q));},30000);const finish=()=>{clearTimeout(timer);ws.close();resolve(rows);};ws.on('open',()=>ws.send(JSON.stringify({type:'connection_init'})));ws.on('error',reject);ws.on('message',raw=>{const v=JSON.parse(raw.toString());if(v.type==='connection_ack')ws.send(JSON.stringify({id:'1',type:'subscribe',payload:{query:q}}));if(v.type==='next'){if(v.payload.errors){clearTimeout(timer);ws.close();reject(Error(JSON.stringify(v.payload.errors)));return;}rows.push(v.payload.data);if(first||v.payload.data.dustGenerations?.__typename==='DustGenerationsProgress')finish();}if(v.type==='complete')finish();if(v.type==='error'){clearTimeout(timer);ws.close();reject(Error(JSON.stringify(v.payload)));}});});
+const query=async(q:string)=>{const r=await fetch(endpoints.indexer,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query:q})});if(!r.ok)throw new Error(`HTTP ${r.status} for ${q.slice(0,100)}: ${(await r.text()).slice(0,100)}`);const d:any=await r.json();if(d.errors)throw new Error(JSON.stringify(d.errors));return d.data;};
+const subscribe=(q:string,first=false)=>new Promise<any[]>((resolve,reject)=>{const ws=new WebSocket(endpoints.indexerWS,'graphql-transport-ws'),rows:any[]=[];const timer=setTimeout(()=>{ws.close();reject(Error('subscription timeout: '+q));},30000);const finish=()=>{clearTimeout(timer);ws.close();resolve(rows);};ws.on('open',()=>ws.send(JSON.stringify({type:'connection_init'})));ws.on('error',reject);ws.on('message',raw=>{const v=JSON.parse(raw.toString());if(v.type==='connection_ack')ws.send(JSON.stringify({id:'1',type:'subscribe',payload:{query:q}}));if(v.type==='next'){if(v.payload.errors){clearTimeout(timer);ws.close();reject(Error(JSON.stringify(v.payload.errors)));return;}rows.push(v.payload.data);if(first||v.payload.data.dustGenerations?.__typename==='DustGenerationsProgress')finish();}if(v.type==='complete')finish();if(v.type==='error'){clearTimeout(timer);ws.close();reject(Error(JSON.stringify(v.payload)));}});});
 const blockQuery='{block{hash height protocolVersion zswapMerkleTreeRoot ledgerParameters zswapEndIndex dustCommitmentEndIndex dustGenerationEndIndex dustCommitmentMerkleTreeRoot dustGenerationMerkleTreeRoot}}';
 const address=DustAddress.encodePublicKey('preprod',BigInt(dustSnapshot.publicKey.publicKey));
 const encodeRoot=(n:bigint|undefined)=>n===undefined?undefined:'73'+Buffer.from(n.toString(16).padStart(64,'0'),'hex').reverse().toString('hex');
@@ -40,7 +42,7 @@ for(let attempt=0;attempt<10;attempt++){
  if(!matched){console.log('No canonical block matched all tree roots; retrying');continue;}
  Object.assign(b,matched);
  // Confirm the chosen block through the separate node RPC as well.
- const rpc:any=await (await fetch('https://rpc.preprod.midnight.network',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'chain_getBlockHash',params:[b.height]})})).json();assert.equal(rpc.result,'0x'+b.hash);
+ const rpc:any=await (await fetch(endpoints.node,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'chain_getBlockHash',params:[b.height]})})).json();assert.equal(rpc.result,'0x'+b.hash);
  shieldedSnapshot.state=Buffer.from(zs.serialize()).toString('hex');shieldedSnapshot.offset=String(z[0].zswapLedgerEvents.maxId);dustSnapshot.state=Buffer.from(ds.serialize()).toString('hex');dustSnapshot.offset=String(d[0].dustLedgerEvents.maxId);
  snapshot.shielded=JSON.stringify(shieldedSnapshot);snapshot.dust=JSON.stringify(dustSnapshot);copyFileSync(file,file+'.before-bootstrap');writeFileSync(file,JSON.stringify(snapshot),{mode:0o600});writeFileSync(statePath('empty-bootstrap-evidence.json'),JSON.stringify({block:b.hash,height:b.height,rootChecks:3,noDustGenerations:true,dustOffset:dustSnapshot.offset,shieldedOffset:shieldedSnapshot.offset},null,2));console.log('Verified empty-wallet tree bootstrap',b.height);process.exit(0);
 }

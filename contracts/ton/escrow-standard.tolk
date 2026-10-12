@@ -2,7 +2,7 @@ tolk 1.4.2
 
 // One escrow per allowlisted reference-layout jetton. Fixed 2-of-3 Ed25519 committee.
 struct Config { domain: uint256; keys: cell; master: address; walletCode: cell; cap: uint64; }
-struct Recovery { nextRefund: uint64; refunds: map<uint64, cell>; pending: map<uint64, cell>; }
+struct Recovery { nextRefund: uint64; refunds: map<uint64, cell>; pending: map<uint64, cell>; recovered: map<uint256, uint8>; }
 struct Storage { config: Cell<Config>; locked: uint64; nextDeposit: uint64; nextRelease: uint64; recovery: Cell<Recovery>; deposits: map<uint64, cell>; releases: map<uint256, uint8>; }
 struct (0x7362d09c) Deposit { queryId: uint64; amount: coins; from: address; payload: RemainingBitsAndRefs; }
 struct Release { receipt: uint256; amount: uint64; recipient: address; a: uint8; b: uint8; sigA: cell; sigB: cell; }
@@ -23,7 +23,16 @@ fun onInternalMessage(in: InMessage) {
   if (op == 0x7362d09c) {
       val msg = lazy Deposit.fromSlice(in.body);
       assert(in.senderAddress == wallet(c)) throw 401;
-      assert(msg.amount > 0 && msg.amount <= 18446744073709551615 && msg.from.getWorkchain() == 0) throw 402;
+      assert(msg.amount > 0 && msg.from.getWorkchain() == 0) throw 402;
+      if (msg.amount > 18446744073709551615) {
+        // Not representable in the uint64 ledger: return it at once rather than strand it.
+        // The escrow funds this return, so its unused TON comes back here, not to the
+        // sender; otherwise repeated oversized deposits would siphon the escrow's balance.
+        createMessage({dest:wallet(c),value:ton("0.06"),bounce:BounceMode.NoBounce,
+          body:Transfer {queryId:msg.queryId,amount:msg.amount,destination:msg.from,responseDestination:contract.getAddress(),customPayload:null,forwardTonAmount:0,forwardPayload:beginCell().storeBool(false).endCell().beginParse()}
+        }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_IGNORE_ERRORS);
+        return;
+      }
       var payload = msg.payload;
       var valid = msg.amount <= c.cap && s.locked + msg.amount <= c.cap;
       var recipient = 0;
@@ -64,6 +73,25 @@ fun onInternalMessage(in: InMessage) {
       recovery.pending.delete(q);
       if(pending.loadBool()) { s.releases.delete(receipt); s.locked += amount; }
       else { recovery.refunds.set(receipt as uint64,beginCell().storeUint(amount,64).storeAddress(pending.loadAddress()).endCell()); }
+  } else if (op == 0x42524705) {
+      // Quorum attests a finalized jetton credit to this escrow's wallet whose notification
+      // was never processed (missing or underfunded). It only creates an exact refund to
+      // the authenticated original sender; each credit transaction is usable once.
+      var body = in.body; body.skipBits(32);
+      val evidence = body.loadUint(256); val amount = body.loadUint(64); val from = body.loadAddress();
+      val a = body.loadUint(8); val b = body.loadUint(8);
+      val sigA = body.loadRef(); val sigB = body.loadRef(); body.assertEnd();
+      assert(a < b && b < 3) throw 404;
+      assert(amount > 0 && from.getWorkchain() == 0) throw 402;
+      assert(!recovery.recovered.exists(evidence)) throw 406;
+      val digest = beginCell().storeUint(op,32).storeAddress(contract.getAddress()).storeUint(c.domain,256)
+          .storeRef(beginCell().storeUint(evidence,256).storeUint(amount,64).storeAddress(from).endCell()).endCell().hash();
+      var ka=c.keys.beginParse(); ka.skipBits(a*256); var kb=c.keys.beginParse(); kb.skipBits(b*256);
+      assert(isSignatureValid(digest,sigA.beginParse(),ka.loadUint(256))) throw 407;
+      assert(isSignatureValid(digest,sigB.beginParse(),kb.loadUint(256))) throw 408;
+      recovery.recovered.set(evidence, 1);
+      recovery.refunds.set(recovery.nextRefund, beginCell().storeUint(amount,64).storeAddress(from).endCell());
+      recovery.nextRefund += 1;
   } else if (op == 0x42524703) {
       assert(in.valueCoins >= ton("0.15")) throw 403;
       var request = in.body; request.skipBits(32); val id = request.loadUint(64); request.assertEnd();
@@ -128,4 +156,5 @@ get fun refundCount(): int { return Storage.fromCell(contract.getData()).recover
 get fun refund(id: uint64): cell { return Storage.fromCell(contract.getData()).recovery.load().refunds.mustGet(id); }
 
 get fun pending(id: uint64): cell { return Storage.fromCell(contract.getData()).recovery.load().pending.mustGet(id); }
+get fun recovered(evidence: uint256): int { return Storage.fromCell(contract.getData()).recovery.load().recovered.exists(evidence) ? 1 : 0; }
 get fun nextRelease(): int { return Storage.fromCell(contract.getData()).nextRelease; }

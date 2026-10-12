@@ -6,6 +6,7 @@ import WebSocket from 'ws';
 import {setNetworkId} from '@midnight-ntwrk/midnight-js-network-id';
 import {indexerPublicDataProvider} from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import {network,statePath} from '../src/environment.js';
+import {midnightEndpoints} from '../src/midnight-endpoints.js';
 import {openTon} from '../src/live-ton.js';
 import {jettonWallet} from '../src/ton.js';
 import {observeTon} from '../src/receipts.js';
@@ -17,7 +18,7 @@ const read=(n:string)=>JSON.parse(readFileSync(statePath(n),'utf8'));
 const e=read('testnet-evidence.json'),d=read('midnight-deployment.json') as {address:string;domain:string;pins:MidnightPins},plan=read('ton-plan.json');
 assert.equal(e.complete,true,'round trip has not completed');assert.equal(e.midnight,d.address);assert.equal(d.domain,plan.domain);
 setNetworkId('preprod');globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
-const provider=indexerPublicDataProvider('https://indexer.preprod.midnight.network/api/v3/graphql','wss://indexer.preprod.midnight.network/api/v3/graphql/ws'),ton=openTon();
+const endpoints=midnightEndpoints('preprod'),provider=indexerPublicDataProvider(endpoints.indexer,endpoints.indexerWS),ton=openTon();
 const calls=e.steps.filter((x:{circuit?:string})=>x.circuit);assert.deepEqual(calls.map((x:{circuit:string})=>x.circuit),['claim','claim','addLiquidity','swap','removeLiquidity','redeem']);
 for(const call of calls){const actual=await provider.watchForTxData(call.txId);assert.equal(actual.status,'SucceedEntirely');assert.equal(actual.blockHeight,call.blockHeight);call.blockHash=actual.blockHash;}
 const state=await provider.queryContractState(d.address,{type:'blockHash',blockHash:calls.at(-1).blockHash});assert(state);

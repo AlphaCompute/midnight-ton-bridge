@@ -34,3 +34,23 @@ test('TON sender releases its process lock when journal initialization fails',as
   await assert.rejects(()=>openTon().send('must-fail-before-network',[]));assert.equal(existsSync(join(dir,'ton-wallet.lock')),false);
  }finally{for(const [key,value]of Object.entries(saved))if(value===undefined)delete process.env[key];else process.env[key]=value;rmSync(dir,{recursive:true,force:true});}
 });
+
+test('only a provably expired, unconsumed wallet message may be marked rejected',async()=>{
+ const {walletMessageExpired,WALLET_EXPIRY_MARGIN}=await import('../src/ton-send-guard.js');const {WalletContractV4}=await import('@ton/ton');const {keyPairFromSeed}=await import('@ton/crypto');
+ const pair=keyPairFromSeed(Buffer.alloc(32,7)),w=WalletContractV4.create({workchain:0,publicKey:pair.publicKey}),validUntil=1_800_000_000;
+ const boc=w.createTransfer({seqno:5,secretKey:pair.secretKey,messages:[],timeout:validUntil}).toBoc().toString('base64');
+ assert.equal(walletMessageExpired(boc,5,5,validUntil+WALLET_EXPIRY_MARGIN+1),true);
+ assert.equal(walletMessageExpired(boc,5,5,validUntil+WALLET_EXPIRY_MARGIN),false,'clock-skew margin required');
+ assert.equal(walletMessageExpired(boc,5,6,validUntil+3600),false,'consumed sequence may be this message');
+ assert.equal(walletMessageExpired(boc,5,4,validUntil+3600),false);
+ assert.throws(()=>walletMessageExpired(boc,4,4,validUntil+3600),/does not match/);
+});
+test('a logical TON send may be retried only after every earlier attempt is a proven rejection',async()=>{
+ const {nextAttemptId}=await import('../src/ton-send-guard.js');
+ const rows=new Map<string,Entry>(),get=(id:string)=>rows.get(id),put=(id:string,stage:Entry['stage'])=>rows.set(id,{id,stage,payload:'{}',transaction:null,txid:null,error:null});
+ assert.equal(nextAttemptId(get,'release:x'),'release:x');
+ for(const stage of ['observed','prepared','sending','submitted','confirmed'] as const){put('release:x',stage);assert.throws(()=>nextAttemptId(get,'release:x'),/reconcile/);}
+ put('release:x','rejected');assert.equal(nextAttemptId(get,'release:x'),'release:x#2');
+ put('release:x#2','sending');assert.throws(()=>nextAttemptId(get,'release:x'),/reconcile/);
+ put('release:x#2','rejected');assert.equal(nextAttemptId(get,'release:x'),'release:x#3');
+});

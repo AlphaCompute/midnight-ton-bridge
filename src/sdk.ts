@@ -38,10 +38,14 @@ export class BridgeClient {
   for(const a of sorted){const pk=this.config.committee[a.signer];if(!pk||!verifyClaim(digest,pk,a.signature))throw new Error('invalid attestation');}
   return this.transport.call('claim',[bytes(receipt.id),BigInt(receipt.asset),BigInt(receipt.amount),{bytes:bytes(receipt.recipient)},BigInt(sorted[0]!.signer),BigInt(sorted[1]!.signer),sorted[0]!.signature,sorted[1]!.signature]);
  }
- redeem(id:string,asset:0|1,amount:bigint,tonRecipient:string){
+ /** Public retirement ID (and TON release receipt) for a redemption nonce. */
+ redemptionId(nonce:string){return Buffer.from(pureCircuits.redemptionId(bytes(nonce))).toString('hex');}
+ /** Use a fresh random nonce and keep it private until the redemption is final: only
+  * its hash is published, so nobody else can retire the same ID first. */
+ redeem(nonce:string,asset:0|1,amount:bigint,tonRecipient:string){
   if(asset!==0&&asset!==1)throw new Error('unknown asset');uint64(amount);
   const recipient=Address.parse(tonRecipient);if(recipient.workChain!==0)throw new Error('only TON basechain supported');
-  return this.transport.call('redeem',[bytes(id),BigInt(asset),amount,recipient.hash]);
+  return this.transport.call('redeem',[bytes(nonce),BigInt(asset),amount,recipient.hash]);
  }
  quote(input:bigint,reserveIn:bigint,reserveOut:bigint){return quoteSwap(input,reserveIn,reserveOut);}
  swap(asset:0|1,amount:bigint,minOut:bigint,recipient:string){if(asset!==0&&asset!==1)throw new Error('unknown asset');uint64(amount);uint64(minOut);return this.transport.call('swap',[BigInt(asset),amount,minOut,{bytes:bytes(recipient)}]);}

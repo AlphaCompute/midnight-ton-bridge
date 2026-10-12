@@ -14,10 +14,10 @@ test('signer verification pins verifier keys, authority and domain before using 
  const domain=Buffer.alloc(32,5),c=new Contract(witnesses),init=c.initialState(createConstructorContext({},'00'.repeat(32)),domain,[11n,22n,33n].map(verifyingKey),1_000_000n);
  const address=sampleContractAddress();
  let ctx=createCircuitContext(address,'00'.repeat(32),init.currentContractState,{});
- const id=Buffer.alloc(32,8),to=new Address(0,Buffer.alloc(32,12));
+ const nonce=Buffer.alloc(32,8),id=Buffer.from(pureCircuits.redemptionId(nonce)),to=new Address(0,Buffer.alloc(32,12));
  const receipt=Buffer.alloc(32,3),holder={bytes:Buffer.alloc(32,4)},digest=pureCircuits.claimDigest(domain,Buffer.from(address,'hex'),receipt,0n,500n,holder);
  ctx=c.impureCircuits.claim(ctx,receipt,0n,500n,holder,0n,2n,signClaim(digest,11n),signClaim(digest,33n)).context;
- ctx=c.impureCircuits.redeem(ctx,id,0n,100n,to.hash).context;
+ ctx=c.impureCircuits.redeem(ctx,nonce,0n,100n,to.hash).context;
  const raw=init.currentContractState as unknown as {data:unknown;serialize():Uint8Array};raw.data=ctx.currentQueryContext.state;
  const build=(authority=new ContractMaintenanceAuthority([],1),swap?:string)=>{
   const s=ContractState.deserialize(raw.serialize());

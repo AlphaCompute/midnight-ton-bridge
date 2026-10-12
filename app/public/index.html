@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Midnight–TON Bridge</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<script type="module" src="app.js"></script>
+</head>
+<body>
+<header class="top">
+ <div class="brand"><img src="icon.svg" alt="" width="28" height="28"><span>Midnight–TON</span></div>
+ <div class="chips" aria-live="polite">
+  <span class="chip" id="ton-live"><i class="dot"></i>TON</span>
+  <span class="chip" id="mn-live"><i class="dot"></i>Midnight</span>
+ </div>
+</header>
+
+<main>
+ <nav class="tabs" role="tablist">
+  <button role="tab" aria-selected="true" aria-controls="p-bridge" id="t-bridge">Bridge</button>
+  <button role="tab" aria-selected="false" aria-controls="p-track" id="t-track">Track</button>
+  <button role="tab" aria-selected="false" aria-controls="p-pool" id="t-pool">Pool</button>
+  <button role="tab" aria-selected="false" aria-controls="p-route" id="t-route">Route</button>
+ </nav>
+
+ <section class="card" role="tabpanel" id="p-bridge" aria-labelledby="t-bridge">
+  <form id="deposit" novalidate>
+   <div class="leg">
+    <div class="leg-head"><span class="leg-label">From TON</span><span class="bal" id="bal"></span></div>
+    <div class="amount-row">
+     <input id="amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="0.0" aria-label="Amount">
+     <select id="asset" name="asset" aria-label="Asset"></select>
+    </div>
+    <label class="field"><span class="sr">TON address</span>
+     <input id="ton" name="tonAddress" autocomplete="off" spellcheck="false" placeholder="TON address">
+    </label>
+   </div>
+   <div class="arrow" aria-hidden="true">↓</div>
+   <div class="leg">
+    <div class="leg-head"><span class="leg-label">To Midnight</span></div>
+    <label class="field"><span class="sr">Midnight address</span>
+     <input id="recipient" name="midnightRecipient" autocomplete="off" spellcheck="false" placeholder="mn_addr_preprod1…">
+    </label>
+   </div>
+   <p class="error" id="deposit-error" role="alert"></p>
+   <button class="primary" id="prepare" type="submit">Continue</button>
+  </form>
+
+  <div id="review" class="review" hidden>
+   <dl id="review-list"></dl>
+   <ul class="warnings" id="review-warn"></ul>
+   <div class="actions">
+    <a class="primary" id="open-wallet" href="#">Sign in wallet</a>
+    <button class="ghost" id="copy-request" type="button">Copy request</button>
+    <button class="ghost" id="edit" type="button">Edit</button>
+   </div>
+  </div>
+ </section>
+
+ <section class="card" role="tabpanel" id="p-track" aria-labelledby="t-track" hidden>
+  <form id="track" class="inline" novalidate>
+   <label class="field">Asset<select id="track-asset" name="asset"></select></label>
+   <label class="field">Deposit #<input id="track-seq" name="sequence" inputmode="numeric" value="0"></label>
+   <button class="primary" type="submit">Look up</button>
+  </form>
+  <p class="error" id="track-error" role="alert"></p>
+  <div id="receipt" class="review" hidden><dl id="receipt-list"></dl></div>
+ </section>
+
+ <section class="card" role="tabpanel" id="p-pool" aria-labelledby="t-pool" hidden>
+  <div class="stats" id="pool-stats"></div>
+  <form id="quote" novalidate>
+   <div class="leg">
+    <div class="leg-head"><span class="leg-label">Pay</span></div>
+    <div class="amount-row"><input id="q-amount" inputmode="decimal" placeholder="0.0" aria-label="Amount in"><select id="q-asset" aria-label="Asset in"></select></div>
+   </div>
+   <div class="arrow" aria-hidden="true">↓</div>
+   <div class="leg">
+    <div class="leg-head"><span class="leg-label">Receive</span></div>
+    <div class="amount-row"><output id="q-out">—</output><span class="sym" id="q-out-sym"></span></div>
+   </div>
+   <label class="field slim">Slippage
+    <select id="q-slip"><option value="10">0.1%</option><option value="50" selected>0.5%</option><option value="100">1%</option><option value="300">3%</option></select>
+   </label>
+   <dl id="q-detail" class="detail"></dl>
+   <p class="error" id="quote-error" role="alert"></p>
+  </form>
+ </section>
+
+ <section class="card" role="tabpanel" id="p-route" aria-labelledby="t-route" hidden>
+  <div id="route"></div>
+ </section>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -55,6 +55,14 @@ npm run validate:local
 
 The local demo exercises Midnight proofs and pool operations; the test suite covers TON execution and cross-chain authorization.
 
+### Web app
+
+```sh
+npm run app   # http://127.0.0.1:3080
+```
+
+Bridge, track, pool and route views for the published testnet route. Set `MIDNIGHT_INDEXER_URL` for Midnight claim status and pool reserves.
+
 ### Deploy to testnet
 
 Follow the [deployment guide](docs/deployment.md#deploy-to-public-testnet) to fund wallets, configure token masters, deploy both chains and verify a complete round trip. It covers existing tokens, optional testnet token issuance and production release requirements.

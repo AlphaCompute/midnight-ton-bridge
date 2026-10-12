@@ -1,5 +1,12 @@
-import { Address, beginCell, Cell, contractAddress, SendMode, toNano, type Contract, type ContractProvider, type Sender } from '@ton/core';
+import { Address, beginCell, Cell, contractAddress, SendMode, toNano, type Builder, type Contract, type ContractProvider, type Sender } from '@ton/core';
 import { sign } from '@ton/crypto';
+
+/** Message opcodes shared with the TON contracts. */
+export const OP={
+  jettonTransfer:0x0f8a7ea5, internalTransfer:0x178d4519, transferNotification:0x7362d09c, excesses:0xd53276db, bounced:0xffffffff,
+  release:0x42524701, refund:0x42524703, restoreFailed:0x42524704, refundUnrecorded:0x42524705,
+  referenceMint:21, legacyMint:0x4d494e54, legacyWalletFailure:0x42524641,
+} as const;
 
 export class TonContract implements Contract {
   constructor(readonly address: Address, readonly init?: {code:Cell;data:Cell}) {}
@@ -13,19 +20,30 @@ export class TonContract implements Contract {
 /** Midnight per-asset circulation cap for this release. Each TON escrow cap must not
  * exceed it, or a locked deposit could become unclaimable. */
 export const BRIDGE_CAP=1_000_000_000_000n;
+/** A positive uint64 amount (the bridge never moves zero). */
 export function uint64(x:bigint) { if(x<=0n || x>=(1n<<64n))throw new Error('amount must be a positive uint64'); return x; }
-export function escrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap=BRIDGE_CAP, legacy=false) {
+/** Any uint64, including zero: sequence numbers, IDs and minima. */
+export function u64(x:bigint) { if(x<0n || x>=(1n<<64n))throw new Error('value must be a uint64'); return x; }
+export function assertAsset(asset:unknown):asserts asset is 0|1 { if(asset!==0&&asset!==1)throw new Error('unknown asset'); }
+/** Two ascending committee indices and their Ed25519 signatures, as every quorum body ends. */
+export function storeQuorum(b:Builder,a:number,c:number,sigA:Buffer,sigB:Buffer) {
+  if(!Number.isInteger(a)||!Number.isInteger(c)||a<0||a>=c||c>2||sigA.length!==64||sigB.length!==64)throw new Error('invalid quorum');
+  return b.storeUint(a,8).storeUint(c,8).storeRef(beginCell().storeBuffer(sigA).endCell()).storeRef(beginCell().storeBuffer(sigB).endCell());
+}
+function initialEscrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap:bigint, recoveryFlags:number) {
   if(domain.length!==32 || keys.length!==3 || keys.some(k=>k.length!==32) || new Set(keys.map(k=>k.toString('hex'))).size!==3) throw new Error('invalid domain/committee');
   uint64(cap);const keyCell=beginCell();for(const k of keys)keyCell.storeBuffer(k);
   const config=beginCell().storeBuffer(domain).storeRef(keyCell.endCell()).storeAddress(master).storeRef(walletCode).storeUint(cap,64).endCell();
-  // Recovery: next refund, refunds, pending and (standard adapter only) recovered credits.
-  const recovery=beginCell().storeUint(0,64).storeBit(false).storeBit(false);if(!legacy)recovery.storeBit(false);
+  // Recovery: next refund, then one empty-dictionary bit per recovery map.
+  const recovery=beginCell().storeUint(0,64).storeUint(0,recoveryFlags);
   return beginCell().storeRef(config).storeUint(0,64).storeUint(0,64).storeUint(0,64).storeRef(recovery.endCell()).storeBit(false).storeBit(false).endCell();
 }
-/** Initial data for the historical custom-wallet escrow (`escrow.tolk`). */
-export function legacyEscrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap=BRIDGE_CAP) {return escrowData(domain,keys,master,walletCode,cap,true);}
-export function walletData(owner:Address, master:Address, code:Cell) {return beginCell().storeCoins(0).storeAddress(owner).storeAddress(master).storeRef(code).storeBit(false).endCell();}
-export function jettonWallet(owner:Address,master:Address,code:Cell) {return TonContract.create(code,walletData(owner,master,code));}
+/** Initial data for `escrow-standard.tolk`: refunds, pending and recovered credits. */
+export function escrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap=BRIDGE_CAP) {return initialEscrowData(domain,keys,master,walletCode,cap,3);}
+/** Initial data for the historical custom-wallet escrow (`escrow.tolk`): refunds and pending only. */
+export function legacyEscrowData(domain:Buffer, keys:Buffer[], master:Address, walletCode:Cell, cap=BRIDGE_CAP) {return initialEscrowData(domain,keys,master,walletCode,cap,2);}
+/** Wallet of the historical custom fixture jetton (`test-wallet.tolk`); see `referenceWallet` for TEP-74. */
+export function legacyJettonWallet(owner:Address,master:Address,code:Cell) {return TonContract.create(code,beginCell().storeCoins(0).storeAddress(owner).storeAddress(master).storeRef(code).storeBit(false).endCell());}
 /** TON forwarded with each deposit notification; it pays the escrow's processing gas.
  * A wallet forwarding much less (wallet apps often forward 1 nanoton) leaves the escrow
  * unable to record either a deposit or a refund, stranding the jettons. */
@@ -34,21 +52,20 @@ export const DEPOSIT_FORWARD_TON=toNano('0.01');
 export const DEPOSIT_ATTACHED_TON=toNano('0.1');
 export function transferBody(queryId:bigint, amount:bigint, destination:Address, response:Address, recipient?:Buffer) {
   uint64(amount);if(recipient && recipient.length!==32)throw new Error('recipient must be 32 bytes');
-  const b=beginCell().storeUint(0x0f8a7ea5,32).storeUint(queryId,64).storeCoins(amount).storeAddress(destination).storeAddress(response).storeBit(false).storeCoins(DEPOSIT_FORWARD_TON).storeBit(false);
+  const b=beginCell().storeUint(OP.jettonTransfer,32).storeUint(queryId,64).storeCoins(amount).storeAddress(destination).storeAddress(response).storeBit(false).storeCoins(DEPOSIT_FORWARD_TON).storeBit(false);
   if(recipient)b.storeBuffer(recipient);return b.endCell();
 }
 export function releaseDigest(escrow:Address,domain:Buffer,receipt:Buffer,amount:bigint,recipient:Address) {
   uint64(amount);if(domain.length!==32||receipt.length!==32)throw new Error('invalid digest field');
   if(recipient.workChain!==0)throw new Error('only basechain recipients supported');
-  return beginCell().storeUint(0x42524701,32).storeAddress(escrow).storeBuffer(domain)
+  return beginCell().storeUint(OP.release,32).storeAddress(escrow).storeBuffer(domain)
     .storeRef(beginCell().storeBuffer(receipt).storeUint(amount,64).storeAddress(recipient).endCell()).endCell().hash();
 }
 export function releaseBody(receipt:Buffer,amount:bigint,recipient:Address,a:number,b:number,sigA:Buffer,sigB:Buffer) {
   uint64(amount);if(receipt.length!==32||recipient.workChain!==0)throw new Error('invalid release');
-  if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||a>=b||b>=3||sigA.length!==64||sigB.length!==64)throw new Error('invalid quorum');
-  return beginCell().storeUint(0x42524701,32).storeBuffer(receipt).storeUint(amount,64).storeAddress(recipient).storeUint(a,8).storeUint(b,8)
-    .storeRef(beginCell().storeBuffer(sigA).endCell()).storeRef(beginCell().storeBuffer(sigB).endCell()).endCell();
+  return storeQuorum(beginCell().storeUint(OP.release,32).storeBuffer(receipt).storeUint(amount,64).storeAddress(recipient),a,b,sigA,sigB).endCell();
 }
-export function signRelease(digest:Buffer,secretKey:Buffer) {return sign(digest,secretKey);}
+/** Ed25519 signature over any committee digest (release, failure or unrecorded credit). */
+export function signTonDigest(digest:Buffer,secretKey:Buffer) {return sign(digest,secretKey);}
 
-export function refundBody(id:bigint){if(id<0n||id>=1n<<64n)throw new Error("invalid refund ID");return beginCell().storeUint(0x42524703,32).storeUint(id,64).endCell();}
+export function refundBody(id:bigint){return beginCell().storeUint(OP.refund,32).storeUint(u64(id),64).endCell();}

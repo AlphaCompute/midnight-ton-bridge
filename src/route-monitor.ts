@@ -1,7 +1,8 @@
-import {readFileSync,writeFileSync,renameSync,existsSync,mkdirSync} from 'node:fs';
+import {readFileSync,existsSync,mkdirSync} from 'node:fs';
+import {writeFileAtomic} from './environment.js';
 import {dirname} from 'node:path';
 export type RouteSample={settled:boolean;issues:string[];checkedAt:string};
-export type MonitorState={version:1;lastCheck:number;lastSuccess:number|null;failures:number;status:'starting'|'healthy'|'degraded'|'alert';issues:string[]};
+type MonitorState={version:1;lastCheck:number;lastSuccess:number|null;failures:number;status:'starting'|'healthy'|'degraded'|'alert';issues:string[]};
 export class RouteMonitor {
  state:MonitorState;
  constructor(readonly file:string,readonly failureThreshold=3,readonly staleAfterMs=180_000){
@@ -21,7 +22,7 @@ export class RouteMonitor {
   const failures=healthy?0:this.state.failures+1;
   this.state={version:1,lastCheck:now,lastSuccess:healthy?now:this.state.lastSuccess,failures,status:healthy?'healthy':failures>=this.failureThreshold?'alert':'degraded',issues:healthy?[]:valid?sample!.issues.length?sample!.issues:['Route is unsettled']:['Route check failed or returned stale/invalid evidence']};
   mkdirSync(dirname(this.file),{recursive:true,mode:0o700});
-  const temp=this.file+'.tmp';writeFileSync(temp,JSON.stringify(this.state,null,2)+'\n',{mode:0o600});renameSync(temp,this.file);
+  writeFileAtomic(this.file,JSON.stringify(this.state,null,2)+'\n');
   return {changed:prior!==this.state.status,state:this.state};
  }
  health(now=Date.now()){

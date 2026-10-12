@@ -1,9 +1,7 @@
 import {ApiPromise,WsProvider} from '@polkadot/api';
-import {buildPersistentWallet} from './wallet-builder.js';
 import {firstValueFrom,filter,timeout} from 'rxjs';
-import {network as configuredNetwork,readSecret,statePath,stateDirectory} from './environment.js';
 import {resolve} from 'node:path';
-import WebSocket from 'ws';
+import {writeFileSync} from 'node:fs';
 import {inMemoryPrivateStateProvider,type EnvironmentConfiguration} from '@midnight-ntwrk/testkit-js';
 import {setNetworkId} from '@midnight-ntwrk/midnight-js-network-id';
 import {indexerPublicDataProvider} from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
@@ -11,37 +9,35 @@ import {NodeZkConfigProvider} from '@midnight-ntwrk/midnight-js-node-zk-config-p
 import {httpClientProofProvider} from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import {CompiledContract} from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import {createUnprovenDeployTx,submitTx,submitCallTx} from '@midnight-ntwrk/midnight-js-contracts';
+import {sampleSigningKey,ContractState,ContractDeploy,ContractMaintenanceAuthority,Transaction,Intent,unshieldedToken} from '@midnight-ntwrk/ledger-v8';
 import {Contract} from '../build/midnight/contract/index.js';
-import {witnesses} from './midnight.js';
+import {openPersistentWallet} from './midnight-wallet.js';
+import {acquireLock,network as configuredNetwork,readSecret,statePath} from './environment.js';
+import {witnesses,type CircuitName} from './midnight.js';
 import {Journal} from './journal.js';
 import {midnightEndpoints} from './midnight-endpoints.js';
-import {writeFileSync,openSync,closeSync,unlinkSync} from 'node:fs';
-import {sampleSigningKey,ContractState,ContractDeploy,ContractMaintenanceAuthority,Transaction,Intent,unshieldedToken} from '@midnight-ntwrk/ledger-v8';
+import {installWebSocket,midnightNetworkId} from './midnight-indexer.js';
 
 export async function openMidnight(options:{waitForFunds?:boolean}={}){
  const network=configuredNetwork();
  if(network!=='local'&&network!=='preprod')throw new Error('test networks only');
- const local=network==='local',networkId=local?'undeployed':'preprod';
+ const local=network==='local',networkId=midnightNetworkId(network);
  const env:EnvironmentConfiguration={walletNetworkId:networkId,networkId,...midnightEndpoints(network),faucet:undefined};
  const seed=process.env.MIDNIGHT_SEED??(local?'0'.repeat(63)+'1':readSecret<{seed:string}>(process.env.MIDNIGHT_SEED_FILE??statePath('midnight-test-wallet.json')).seed);
  if(!seed||!/^[a-f0-9]{64}$/i.test(seed))throw new Error('MIDNIGHT_SEED must be 32-byte hex');
- setNetworkId(networkId);
- // Wallet and indexer clients expect a global WebSocket implementation.
- globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
- const lockPath=statePath('midnight-wallet.lock'),lockFd=openSync(lockPath,'wx',0o600);
- writeFileSync(lockFd,JSON.stringify({pid:process.pid,network:networkId}));
+ setNetworkId(networkId);installWebSocket();
  // Released on any exit, including SDK crashes from unhandled socket errors; journals,
  // not this lock, guard against duplicate transactions.
- let locked=true;const unlock=()=>{if(!locked)return;locked=false;process.off('exit',unlock);closeSync(lockFd);unlinkSync(lockPath);};process.once('exit',unlock);
- let built:Awaited<ReturnType<typeof buildPersistentWallet>>;
- try{built=await buildPersistentWallet(env,seed);}catch(error){unlock();throw error;}
+ const release=acquireLock(statePath('midnight-wallet.lock'),{network:networkId}),unlock=()=>{process.off('exit',unlock);release();};process.once('exit',unlock);
+ let journal:Journal,built:Awaited<ReturnType<typeof openPersistentWallet>>;
+ try{journal=new Journal(statePath('midnight-transactions.sqlite'));}catch(error){unlock();throw error;}
+ try{built=await openPersistentWallet(env,seed);}catch(error){journal.close();unlock();throw error;}
  const wallet=built.provider;
  const checkpoint=setInterval(()=>{void built.save().catch(e=>console.error('Wallet checkpoint failed:',String(e)));},60000);
  checkpoint.unref();
- stateDirectory();
- const journal=new Journal(statePath('midnight-transactions.sqlite'));
+ const assertSettled=(action:string)=>{if(journal.pending().length)throw new Error(`Reconcile pending Midnight transactions before ${action}`);};
  const path=resolve('build/midnight');
- const zkConfigProvider=new NodeZkConfigProvider<'claim'|'redeem'|'addLiquidity'|'swap'|'removeLiquidity'>(path);
+ const zkConfigProvider=new NodeZkConfigProvider<CircuitName>(path);
  let nodeApi:ApiPromise|undefined;
  const providers={privateStateProvider:inMemoryPrivateStateProvider<string,Record<string,never>>(),
   publicDataProvider:indexerPublicDataProvider(env.indexer,env.indexerWS),zkConfigProvider,
@@ -51,11 +47,17 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
    const raw=Buffer.from(tx.serialize()).toString('hex');
    const previous=journal.get(id);
    if(previous)throw new Error(`transaction ${id} already journaled; reconcile before retrying`);
-   journal.observe(id,purpose);journal.move(id,'observed','prepared',raw,id);
-   await wallet.wallet.pendingTransactionsService.addPendingTransaction(tx);
-   // @ts-expect-error Polkadot WsProvider's optional ttl differs under exactOptionalPropertyTypes.
-   nodeApi??=await ApiPromise.create({provider:new WsProvider(env.nodeWS),noInitWarn:true});
-   const send=nodeApi.tx.midnight?.sendMnTransaction;if(!send)throw new Error('node lacks Midnight transaction extrinsic');
+   journal.observe(id,purpose);journal.move(id,'observed','prepared',{tx:raw,txid:id});
+   let send:NonNullable<ApiPromise['tx']['midnight']>['sendMnTransaction'];
+   try{
+    await wallet.wallet.pendingTransactionsService.addPendingTransaction(tx);
+    // @ts-expect-error Polkadot WsProvider's optional ttl differs under exactOptionalPropertyTypes.
+    nodeApi??=await ApiPromise.create({provider:new WsProvider(env.nodeWS),noInitWarn:true});
+    const extrinsic=nodeApi.tx.midnight?.sendMnTransaction;if(!extrinsic)throw new Error('node lacks Midnight transaction extrinsic');send=extrinsic;
+   }catch(error){
+    // Nothing has left this process yet, so the entry is provably dead rather than ambiguous.
+    journal.move(id,'prepared','rejected',{error:`not broadcast: ${String(error)}`});throw error;
+   }
    journal.move(id,'prepared','sending');
    await nodeApi.rpc.author.submitExtrinsic(send('0x'+raw).toHex());
    journal.move(id,'sending','submitted');return id;
@@ -68,12 +70,12 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
    let state=await synced();
    if(!Object.values(state.unshielded.balances).some(n=>n>0n))throw new Error('Wallet has no test funds; fund its address before deployment');
    if(state.dust.balance(new Date())===0n){
-    if(journal.list().some(r=>r.stage==='prepared'||r.stage==='sending'||r.stage==='submitted'))throw new Error('Reconcile pending transactions before DUST registration');
+    assertSettled('DUST registration');
     const coins=state.unshielded.availableCoins.filter(c=>c.utxo.type===unshieldedToken().raw&&!c.meta.registeredForDustGeneration);
     if(coins.length){
      const recipe=await wallet.wallet.registerNightUtxosForDustGeneration(coins,wallet.unshieldedKeystore.getPublicKey(),p=>wallet.unshieldedKeystore.signData(p));
      const tx=await wallet.wallet.finalizeRecipe(recipe),id=await providers.midnightProvider.submitTx(tx,'DUST registration');
-     const result=await providers.publicDataProvider.watchForTxData(id);journal.move(id,'submitted',result.status==='SucceedEntirely'?'confirmed':'rejected');
+     const result=await providers.publicDataProvider.watchForTxData(id);journal.move(id,'submitted',result.status==='SucceedEntirely'?'confirmed':'rejected',{error:result.status==='SucceedEntirely'?null:result.status});
      if(result.status!=='SucceedEntirely')throw new Error('DUST registration failed');
     }
     await firstValueFrom(wallet.wallet.state().pipe(filter(s=>s.dust.state.progress.isStrictlyComplete()&&s.dust.balance(new Date())>0n),timeout(300000)));
@@ -81,12 +83,13 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
   }
  }catch(error){clearInterval(checkpoint);await built.save().catch(()=>{});await wallet.stop().catch(()=>{});journal.close();await nodeApi?.disconnect();unlock();throw error;}
  const finalize=(data:{status:string;identifiers:readonly string[]})=>{
-  for(const id of data.identifiers){const row=journal.get(id);if(row&&(row.stage==='sending'||row.stage==='submitted'))journal.move(id,row.stage,data.status==='SucceedEntirely'?'confirmed':'rejected',null,null,data.status==='SucceedEntirely'?null:data.status);}
-  if(data.status!=='SucceedEntirely')throw new Error(`Midnight transaction failed: ${data.status}`);
+  const ok=data.status==='SucceedEntirely';
+  for(const id of data.identifiers){const row=journal.get(id);if(row&&(row.stage==='sending'||row.stage==='submitted'))journal.move(id,row.stage,ok?'confirmed':'rejected',{error:ok?null:data.status});}
+  if(!ok)throw new Error(`Midnight transaction failed: ${data.status}`);
  };
  return {wallet,providers,compiled,env,journal,
   deploy:async(domain:Uint8Array,keys:Parameters<Contract['initialState']>[2],cap:bigint)=>{
-   if(journal.list().some(r=>r.stage==='prepared'||r.stage==='sending'||r.stage==='submitted'))throw new Error('Reconcile pending Midnight transactions before deploying');
+   assertSettled('deploying');
    // Build the constructor with the official SDK, then deploy its public state
    // with an impossible maintenance threshold. No upgrade key exists on chain.
    const prepared=await createUnprovenDeployTx(providers,{compiledContract:compiled,initialPrivateState:{},signingKey:sampleSigningKey(),args:[domain,keys,cap]});
@@ -107,8 +110,8 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
    if(!data)return {status:'pending' as const,txId:id};
    finalize(data);return {status:data.status,txId:data.txId,blockHeight:data.blockHeight};
   },
-  call:async(address:string,circuit:'claim'|'redeem'|'addLiquidity'|'swap'|'removeLiquidity',args:unknown[])=>{
-   if(journal.list().some(r=>r.stage==='prepared'||r.stage==='sending'||r.stage==='submitted'))throw new Error('Reconcile pending Midnight transactions before another call');
+  call:async(address:string,circuit:CircuitName,args:unknown[])=>{
+   assertSettled('another call');
    // This contract has no persistent private application state. Restore its empty
    // witness state when opening an existing deployment in a fresh process.
    await providers.privateStateProvider.setContractAddress(address);

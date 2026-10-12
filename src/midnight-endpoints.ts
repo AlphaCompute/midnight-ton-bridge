@@ -12,9 +12,22 @@ export function midnightEndpoints(network:Network,env:NodeJS.ProcessEnv=process.
  const token=env.BLOCKFROST_PROJECT_ID?.trim(),need=(url:string|undefined,fallback:string)=>{
   if(url)return url;if(!token)throw new Error('Set BLOCKFROST_PROJECT_ID to a Midnight Preprod project ID (or set every MIDNIGHT_* endpoint)');
   if(!token.startsWith('nightpreprod'))throw new Error('BLOCKFROST_PROJECT_ID is not a Midnight Preprod project ID');
-  return withToken(fallback,token);};
+  redactProcessOutput();return withToken(fallback,token);};
  return {node:need(env.MIDNIGHT_NODE_URL,'https://rpc.midnight-preprod.blockfrost.io'),nodeWS:need(env.MIDNIGHT_NODE_WS,'wss://rpc.midnight-preprod.blockfrost.io'),
   indexer:need(env.MIDNIGHT_INDEXER_URL,'https://midnight-preprod.blockfrost.io/api/v0'),indexerWS:need(env.MIDNIGHT_INDEXER_WS,'wss://midnight-preprod.blockfrost.io/api/v0/ws'),proofServer};
 }
 /** Removes Blockfrost tokens from text before it is logged. */
 export const redactEndpoints=(text:string)=>text.replace(/project_id=[^&\s"']+/g,'project_id=REDACTED');
+let redacting=false;
+/** Redacts Blockfrost tokens from everything this process writes to stdout and stderr.
+ * Dependencies log full endpoint URLs (the Polkadot provider does on every disconnect),
+ * so redacting only our own messages would still leak the token. Idempotent. */
+export function redactProcessOutput(){
+ if(redacting)return;redacting=true;
+ for(const stream of [process.stdout,process.stderr]){
+  const write=stream.write.bind(stream) as (chunk:unknown,...rest:unknown[])=>boolean;
+  // Bytes pass through unchanged unless they hold a token; latin1 round-trips any byte.
+  const bytes=(c:Uint8Array)=>{const b=Buffer.from(c.buffer,c.byteOffset,c.byteLength);return b.includes('project_id=')?Buffer.from(redactEndpoints(b.toString('latin1')),'latin1'):c;};
+  stream.write=((chunk:unknown,...rest:unknown[])=>write(typeof chunk==='string'?redactEndpoints(chunk):chunk instanceof Uint8Array?bytes(chunk):chunk,...rest)) as typeof stream.write;
+ }
+}

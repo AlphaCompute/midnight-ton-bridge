@@ -78,3 +78,12 @@ test('preprod Midnight endpoints require a Blockfrost preprod token and never fa
  assert.equal(midnightEndpoints('local',{}).indexer,'http://127.0.0.1:18088/api/v3/graphql');
  assert.equal(redactEndpoints(`request to ${e.indexer} failed`),'request to https://midnight-preprod.blockfrost.io/api/v0?project_id=REDACTED failed');
 });
+
+test('a process using a Blockfrost token never writes it to stdout or stderr',async()=>{
+ const {spawnSync}=await import('node:child_process');
+ const script="const m=await import('./src/midnight-endpoints.ts');const e=m.midnightEndpoints('preprod',{BLOCKFROST_PROJECT_ID:'nightpreprodSECRET'});console.log(e.indexer);console.error(new Error('disconnected from '+e.nodeWS));process.stderr.write(Buffer.from(e.indexerWS));";
+ const r=spawnSync(process.execPath,['--import','tsx','--input-type=module','-e',script],{encoding:'utf8'});
+ assert.equal(r.status,0,r.stderr);
+ assert(!(r.stdout+r.stderr).includes('nightpreprodSECRET'));
+ assert.match(r.stdout,/project_id=REDACTED/);assert.match(r.stderr,/disconnected from wss:\/\/rpc\.midnight-preprod\.blockfrost\.io\?project_id=REDACTED/);
+});

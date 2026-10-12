@@ -19,7 +19,6 @@ Date: 2026-09-14. Scope: the full bridge implementation deployed on testnet; no 
 | Notes starter | Its separate test passed |
 | Linux CI | GitHub-hosted bootstrap/build/tests/starter/package workflow passed after correcting compiler target path; final release SHA must also be green |
 | Dependencies | `npm audit` reported zero known vulnerabilities; this is not a source audit |
-| Review PDF | Rendered and visually checked; implementing-agent review, not independent certification |
 
 Machine: macOS ARM64, Node 24.15.0, npm 11. Compact 0.31.1 / runtime 0.16.0 / onchain-runtime-v3 3.0.0 / Midnight JS 4.1.1 / ledger 8.1.0 / Tolk 1.4.2 / Sandbox 0.44.0. Exact transitive versions are frozen by the lockfile. Local images: node 1.0.0, indexer 4.3.3, proof server 8.1.0.
 

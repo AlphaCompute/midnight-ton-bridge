@@ -4,7 +4,8 @@ import {once} from 'node:events';
 import type {AddressInfo} from 'node:net';
 import {Address,Cell,toNano} from '@ton/core';
 import {UnshieldedAddress} from '@midnight-ntwrk/wallet-sdk-address-format';
-import {createApp,loadDeployment,toUnits,midnightRecipient,DEPOSIT_ATTACHED_TON,type TonReader,type MidnightReader} from '../app/server.js';
+import {createApp,loadDeployment,toUnits,midnightRecipient,type TonReader,type MidnightReader} from '../app/server.js';
+import {DEPOSIT_ATTACHED_TON} from '../src/ton.js';
 import {referenceWallet} from '../src/jettons.js';
 import {quoteSwap} from '../src/midnight.js';
 import {depositId} from '../src/receipts.js';
@@ -129,4 +130,19 @@ test('rejects cross-origin, non-JSON and oversized posts',async()=>{
   assert.equal((await s.post('/api/deposit',[1])).status,400);
   assert.equal((await s.get('/api/nope')).status,404);
  }finally{await s.close();}
+});
+
+test('caps concurrent upstream lookups so one client cannot flood the RPC endpoints',async()=>{
+ let release!:()=>void;const gate=new Promise<void>(r=>{release=r;}),f=fakes();
+ const slow:TonReader={...f.ton,async balance(w){await gate;return f.ton.balance(w);}};
+ const s=await serve(createApp({deployment,ton:slow,midnight:f.midnight,maxInFlight:1}));
+ try{
+  const first=s.get('/api/balances?owner='+encodeURIComponent(owner.toString({testOnly:true})));
+  await new Promise(r=>setTimeout(r,50));
+  const busy=await s.get('/api/balances?owner='+encodeURIComponent(owner.toString({testOnly:true})));
+  assert.equal(busy.status,503);assert.match((await busy.json()).error,/busy/);
+  assert.equal((await s.get('/api/config')).status,200,'static configuration is never throttled');
+  release();assert.equal((await first).status,200);
+  assert.equal((await s.get('/api/balances?owner='+encodeURIComponent(owner.toString({testOnly:true})))).status,200,'capacity is released');
+ }finally{release();await s.close();}
 });

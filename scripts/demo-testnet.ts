@@ -47,7 +47,7 @@ try{
  }
  const secret=randomBytes(32),owner=persistentHash(new CompactTypeBytes(32),secret);writeFileSync(statePath('testnet-lp-secret.json'),JSON.stringify({secret:secret.toString('hex')}),{mode:0o600,flag:'wx'});
  await record('addLiquidity',[owner,5000n,5000n,5000n]);await record('swap',[0n,100n,quoteSwap(100n,5000n,5000n),recipient]);await record('removeLiquidity',[secret,5000n,0n,0n,recipient]);
- const id=randomBytes(32);const retirement=await record('redeem',[id,0n,100n,t.wallet.address.hash]);
+ const nonce=randomBytes(32),id=Buffer.from(pureCircuits.redemptionId(nonce));const retirement=await record('redeem',[nonce,0n,100n,t.wallet.address.hash]);
  const request={id:id.toString('hex'),asset:0 as const,amount:'100',recipient:t.wallet.address.toRawString(),transactionId:retirement.public.txId};
  const snapshot=await m.providers.publicDataProvider.queryContractState(d.address,{type:'blockHash',blockHash:retirement.public.blockHash});if(!snapshot)throw new Error('missing retirement state');
  const digest=verifyRedemption(snapshot,d.pins,request,[plan.assets[0].escrow,plan.assets[1].escrow]);

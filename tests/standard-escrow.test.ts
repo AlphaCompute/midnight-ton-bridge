@@ -188,7 +188,7 @@ test('standard route end to end: SDK deposit, observed receipt, Midnight claim, 
  assert.equal(ledger(ctx.currentQueryContext.state).circulating[0],await r.escrow.getNumber('locked'));
  await assert.rejects(()=>bridge.claim(receipt,[{signer:0,signature:signClaim(digest,midKeys[0]!)},{signer:1,signature:signClaim(digest,midKeys[1]!)}]),/replayed receipt/);
  // Retire on Midnight, then derive the release only from the recorded commitment.
- const id='cd'.repeat(32);await bridge.redeem(id,0,300n,r.user.address.toRawString());
+ const nonce='cd'.repeat(32),id=bridge.redemptionId(nonce);await bridge.redeem(nonce,0,300n,r.user.address.toRawString());
  const request={id,asset:0 as const,amount:'300',recipient:r.user.address.toRawString(),transactionId:'local'};
  const escrows:[string,string]=[r.escrow.address.toRawString(),other.toRawString()],data=ledger(ctx.currentQueryContext.state);
  assert.throws(()=>retirementRelease(data,domain.toString('hex'),{...request,amount:'301'},escrows),/differs/);

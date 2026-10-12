@@ -1,0 +1,59 @@
+{
+  "scope": "Six sequential successful calls in one public testnet round trip; total call duration includes transaction preparation, proof, broadcast and finality. Not isolated proving time or a throughput benchmark.",
+  "machine": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "cpu": "Apple M4 Max",
+    "node": "v24.5.0"
+  },
+  "rows": [
+    {
+      "circuit": "claim",
+      "milliseconds": 35397,
+      "transactionId": "006ea91b6f3fa25ac147206f973eecb9ef793c76f12a9ff03a95b98e3724ca4591",
+      "blockHeight": 2951932
+    },
+    {
+      "circuit": "claim",
+      "milliseconds": 50755,
+      "transactionId": "0066f3d33324eb471d349bc9bb21522f6ef158738441d821a513e22c17834bfcd7",
+      "blockHeight": 2952037
+    },
+    {
+      "circuit": "addLiquidity",
+      "milliseconds": 30245,
+      "transactionId": "00ee222aef7c32d211ba1cefbffec545243069b28dd625cb291debe61d04e654af",
+      "blockHeight": 2952047
+    },
+    {
+      "circuit": "swap",
+      "milliseconds": 31334,
+      "transactionId": "00d4c6e936cb62176eee609f34ebde860a62d8675e1e08940afe086af0e0fc8b39",
+      "blockHeight": 2952053
+    },
+    {
+      "circuit": "removeLiquidity",
+      "milliseconds": 30848,
+      "transactionId": "00ddfa3269574ed10ec8015d3236e3720bc48071ff3cb05c5343f71040825d15f0",
+      "blockHeight": 2952059
+    },
+    {
+      "circuit": "redeem",
+      "milliseconds": 29405,
+      "transactionId": "0040d681b878d5f33c77de10b8fa9c8471bec60b34a275694d9126b3a4af5c04b2",
+      "blockHeight": 2952069
+    }
+  ],
+  "summary": {
+    "samples": 6,
+    "totalMilliseconds": 207984,
+    "medianMilliseconds": 31091,
+    "minimumMilliseconds": 29405,
+    "maximumMilliseconds": 50755
+  },
+  "limits": [
+    "No concurrency/load test was performed.",
+    "No throughput or latency SLA is inferred from six samples.",
+    "Production performance targets require explicit acceptance."
+  ]
+}

@@ -1,22 +1,24 @@
 import {createServer} from 'node:http';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {openSync,closeSync,unlinkSync,mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {RouteMonitor,type RouteSample} from '../src/monitor.js';
+import {RouteMonitor,type RouteSample} from '../src/route-monitor.js';
+import {acquireLock} from '../src/environment.js';
 const directory=resolve(process.env.BRIDGE_MONITOR_DIR??'.state/monitor');mkdirSync(directory,{recursive:true,mode:0o700});
-const interval=Number(process.env.BRIDGE_MONITOR_INTERVAL_MS??60000),timeout=Number(process.env.BRIDGE_MONITOR_TIMEOUT_MS??45000),port=Number(process.env.BRIDGE_MONITOR_PORT??9095);
-if(!Number.isSafeInteger(interval)||interval<1000||!Number.isSafeInteger(timeout)||timeout<1000||timeout>=interval||!Number.isInteger(port)||port<1||port>65535)throw Error('Invalid monitor interval, timeout or port');
+const interval=Number(process.env.BRIDGE_MONITOR_INTERVAL_MS??60000),timeout=Number(process.env.BRIDGE_MONITOR_TIMEOUT_MS??45000),port=Number(process.env.BRIDGE_MONITOR_PORT??9095),threshold=Number(process.env.BRIDGE_MONITOR_FAILURE_THRESHOLD??3);
+if(!Number.isSafeInteger(interval)||interval<1000||!Number.isSafeInteger(timeout)||timeout<1000||timeout>=interval||!Number.isInteger(port)||port<1||port>65535||!Number.isSafeInteger(threshold)||threshold<1)throw Error('Invalid monitor interval, timeout, port or failure threshold');
 const lockDirectory=resolve(process.env.BRIDGE_MONITOR_LOCK_DIR??directory);mkdirSync(lockDirectory,{recursive:true,mode:0o700});
-const lock=resolve(lockDirectory,'monitor.lock'),fd=openSync(lock,'wx',0o600);writeFileSync(fd,JSON.stringify({pid:process.pid,startedAt:new Date().toISOString()}));let closing=false,child:ReturnType<typeof spawn>|undefined,timer:ReturnType<typeof setTimeout>|undefined;
-const monitor=new RouteMonitor(resolve(directory,'status.json'),Number(process.env.BRIDGE_MONITOR_FAILURE_THRESHOLD??3),interval*3);
+const unlock=acquireLock(resolve(lockDirectory,'monitor.lock'),{startedAt:new Date().toISOString()});let closing=false,child:ReturnType<typeof spawn>|undefined,timer:ReturnType<typeof setTimeout>|undefined;
+const monitor=new RouteMonitor(resolve(directory,'status.json'),threshold,interval*3);
+// The compiled route check runs in a bounded child process (dist/scripts/check-route.js).
 const checkPath=fileURLToPath(new URL('./check-route.js',import.meta.url));
 const server=createServer((req,res)=>{
  if(req.url==='/metrics'){res.writeHead(200,{'content-type':'text/plain; version=0.0.4'});res.end(monitor.metrics());}
  else if(req.url==='/healthz'){const h=monitor.health();res.writeHead(h.healthy?200:503,{'content-type':'application/json'});res.end(JSON.stringify(h));}
  else{res.writeHead(404);res.end();}
 });
-function cleanup(){if(closing)return;closing=true;if(timer)clearTimeout(timer);child?.kill('SIGTERM');server.close();closeSync(fd);unlinkSync(lock);}
+function cleanup(){if(closing)return;closing=true;if(timer)clearTimeout(timer);child?.kill('SIGTERM');server.close();unlock();}
 process.on('SIGINT',cleanup);process.on('SIGTERM',cleanup);
 server.on('error',e=>{cleanup();console.error(e.message);process.exitCode=1;});
 async function check(){

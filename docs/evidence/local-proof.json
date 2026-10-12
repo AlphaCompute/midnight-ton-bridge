@@ -1,0 +1,72 @@
+{
+  "network": "isolated-local-only",
+  "address": "2043d23f6ed3ffc44482e6715e804ee0fe39f7f6d3c0e27ec49b85c96c86dcc4",
+  "pins": {
+    "domain": "918138188123b2073ab5ac9e5a5b607f83efe78fdcae6e678a1cae23825a424e",
+    "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",
+    "verifiers": {
+      "claim": "06fd3b5df85a5a056bae8ebd8f46b3268efa6988e714556785deab4b1da0ef86",
+      "redeem": "598af0d7ad4a0fc6a3cc8313b55858d026de453826eaafb2155d7595e4eab4d6",
+      "addLiquidity": "daed71d2afcd19d6ffd134467605b7571c0381f9e34c4dd8565f53f70e770db8",
+      "swap": "16c087e3565666f6bb480a995e3e7a20284f61e732b0abb7edd4ccf34a0194cd",
+      "removeLiquidity": "59646edfb8b08f0f8477400d4b24d9719803ba70a748fc823b803f3a6cc34129"
+    }
+  },
+  "transactions": [
+    {
+      "circuit": "claim",
+      "txId": "0005803129747b3b6323a2192ca679d58529910e44cfc32a77e3827c4e240cca40",
+      "blockHeight": 29,
+      "status": "SucceedEntirely",
+      "blockHash": "de0423cdc5de113ee25143fbb024db813fa8f0ddbfb91129b29f13fdb275dfb9"
+    },
+    {
+      "circuit": "claim",
+      "txId": "00be928ca1a1a98cf2972e262cfbb2be570dfb800849a3ea9da42d9bfe9eb30a6a",
+      "blockHeight": 36,
+      "status": "SucceedEntirely",
+      "blockHash": "b0fb9896246968b91636a5f1529a12f499fd9fcd1db939029e72b56873907db2"
+    },
+    {
+      "circuit": "addLiquidity",
+      "txId": "00b11f008113926cb0416b21e1357632cdffc29666b7b9ab02b59112e3f217eb4b",
+      "blockHeight": 45,
+      "status": "SucceedEntirely",
+      "blockHash": "9a692af8934883e483a902b6f57d4442767ae0663e7b8e26dee3950c46c46c32"
+    },
+    {
+      "circuit": "swap",
+      "txId": "00702c4e5040a073b11aa1e85e63400b74d4b119b8ffafb1b8e54d95cc62f9e427",
+      "blockHeight": 50,
+      "status": "SucceedEntirely",
+      "blockHash": "648e8506b58f075abd2349ea8d878007394ecccdfacb57896205d8f9ccdf94d1"
+    },
+    {
+      "circuit": "removeLiquidity",
+      "txId": "008ac584d01b1fd4d87bd7fa2968c49706642e4022fcdb664a07a1e6144e63aeeb",
+      "blockHeight": 55,
+      "status": "SucceedEntirely",
+      "blockHash": "a7149379fec637d196c40ba2d78fecf992d7502cf238d2686ee0a66e4abe3d32"
+    },
+    {
+      "circuit": "redeem",
+      "txId": "00562cc816f1602bdad6a2cc43f3c8576a482c4cb88b435599904c9eec7118a290",
+      "blockHeight": 60,
+      "status": "SucceedEntirely",
+      "blockHash": "fff20ed888eee7fbe4b5785b74a3ebd5e2a6ee5e2910d16c0959f5894d36dc5e"
+    }
+  ],
+  "final": {
+    "circulating": [
+      "9900",
+      "10000"
+    ],
+    "reserve": [
+      "0",
+      "0"
+    ],
+    "totalShares": "0",
+    "retiredCount": "1"
+  },
+  "reverseVerification": "matched retirement; altered amount, maintenance authority and verifier rejected"
+}

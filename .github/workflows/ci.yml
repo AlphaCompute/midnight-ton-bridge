@@ -20,4 +20,4 @@ jobs:
       - run: bash scripts/bootstrap.sh
       - run: npm run check
       - run: npm --prefix examples/notes ci && npm --prefix examples/notes test
-      - run: mkdir -p tmp && npm pack --json --pack-destination tmp > tmp/pack.json && node scripts/check-package.mjs tmp/pack.json
+      - run: mkdir -p tmp && npm pack --json --pack-destination tmp > tmp/pack.json && node scripts/release.mjs check-package tmp/pack.json

@@ -1,0 +1,26 @@
+{
+  "network": "TON-testnet/Midnight-preprod",
+  "checkedAt": "2026-10-12T18:44:55.183Z",
+  "midnight": "e666f576390cd26594639c9e37ba5c8dc84aeb638d739c68c1654c7385e5341b",
+  "assets": [
+    {
+      "asset": 0,
+      "master": "0:2ef9f7bb6e196763fc4240a9a12c54edf7936f6e8a2029161b7367bc2a76532c",
+      "block": 90823313,
+      "balance": "9900",
+      "locked": "9900",
+      "circulating": "9900"
+    },
+    {
+      "asset": 1,
+      "master": "0:f362eab5a3a212a5b9bd0576a92d9c5652aa2a314d1f624fb364d504e0835f2d",
+      "block": 90823328,
+      "balance": "10000",
+      "locked": "10000",
+      "circulating": "10000"
+    }
+  ],
+  "issues": [],
+  "settled": true,
+  "note": "Independent chain snapshots; run after transfers settle. Equality is necessary but is not proof of every transfer or an audit."
+}

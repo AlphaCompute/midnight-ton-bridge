@@ -1,17 +1,19 @@
 import {pureCircuits} from '../build/midnight/contract/index.js';
-import {type SchnorrSignature,quoteSwap,verifyClaim,validPoint} from './midnight.js';
+import {type CircuitName,type SchnorrSignature,quoteSwap,verifyClaim,validPoint} from './midnight.js';
 import {type JubjubPoint} from '@midnight-ntwrk/compact-runtime';
 import {Address} from '@ton/core';
-import {type DepositReceipt} from './receipts.js';
-import {transferBody,uint64} from './ton.js';
+import {type DepositReceipt} from './escrow.js';
+import {assertAsset,transferBody,u64,uint64} from './ton.js';
+import {hex32 as bytes} from './encoding.js';
+import type {TestNetwork} from './environment.js';
+export {DEPOSIT_ATTACHED_TON} from './ton.js';
 
-export type BridgeConfig={network:'local'|'preprod';domain:string;midnightAddress:string;escrows:[string,string];committee:[JubjubPoint,JubjubPoint,JubjubPoint]};
+export type BridgeConfig={network:TestNetwork;domain:string;midnightAddress:string;escrows:[string,string];committee:[JubjubPoint,JubjubPoint,JubjubPoint]};
 export type ClaimAttestation={signer:0|1|2;signature:SchnorrSignature};
 export interface MidnightTransport {
  /** Return a transaction identifier. The client never interprets it as finality. */
- call(circuit:'claim'|'redeem'|'addLiquidity'|'swap'|'removeLiquidity',args:unknown[]):Promise<string>;
+ call(circuit:CircuitName,args:unknown[]):Promise<string>;
 }
-const bytes=(s:string)=>{if(!/^[a-f0-9]{64}$/i.test(s))throw new Error('expected 32-byte hex');return Buffer.from(s,'hex');};
 export class BridgeClient {
  constructor(readonly config:BridgeConfig,private readonly transport:MidnightTransport){
   if(config.network!=='local'&&config.network!=='preprod')throw new Error('mainnet is not supported');
@@ -23,13 +25,13 @@ export class BridgeClient {
   if(new Set(config.committee.map(p=>`${p.x}:${p.y}`)).size!==3)throw new Error('duplicate committee');
  }
  depositMessage(asset:0|1,amount:bigint,midnightRecipient:string,tonSender:string,queryId:bigint){
-  if(asset!==0&&asset!==1)throw new Error('unknown asset');
+  assertAsset(asset);
   return transferBody(queryId,amount,Address.parse(this.config.escrows[asset]),Address.parse(tonSender),bytes(midnightRecipient));
  }
  claimDigest(receipt:DepositReceipt){
   if(receipt.network!=='ton-testnet'||!['0','1'].includes(String(receipt.asset)))throw new Error('invalid route');
   if(Address.parse(receipt.escrow).toRawString()!==Address.parse(this.config.escrows[receipt.asset]).toRawString())throw new Error('wrong escrow');
-  const amount=BigInt(receipt.amount);if(amount<=0n||amount>=1n<<64n)throw new Error('invalid amount');
+  const amount=uint64(BigInt(receipt.amount));
   return pureCircuits.claimDigest(bytes(this.config.domain),bytes(this.config.midnightAddress),bytes(receipt.id),BigInt(receipt.asset),amount,{bytes:bytes(receipt.recipient)});
  }
  async claim(receipt:DepositReceipt,attestations:ClaimAttestation[]){
@@ -43,12 +45,12 @@ export class BridgeClient {
  /** Use a fresh random nonce and keep it private until the redemption is final: only
   * its hash is published, so nobody else can retire the same ID first. */
  redeem(nonce:string,asset:0|1,amount:bigint,tonRecipient:string){
-  if(asset!==0&&asset!==1)throw new Error('unknown asset');uint64(amount);
+  assertAsset(asset);uint64(amount);
   const recipient=Address.parse(tonRecipient);if(recipient.workChain!==0)throw new Error('only TON basechain supported');
   return this.transport.call('redeem',[bytes(nonce),BigInt(asset),amount,recipient.hash]);
  }
  quote(input:bigint,reserveIn:bigint,reserveOut:bigint){return quoteSwap(input,reserveIn,reserveOut);}
- swap(asset:0|1,amount:bigint,minOut:bigint,recipient:string){if(asset!==0&&asset!==1)throw new Error('unknown asset');uint64(amount);uint64(minOut);return this.transport.call('swap',[BigInt(asset),amount,minOut,{bytes:bytes(recipient)}]);}
+ swap(asset:0|1,amount:bigint,minOut:bigint,recipient:string){assertAsset(asset);uint64(amount);uint64(minOut);return this.transport.call('swap',[BigInt(asset),amount,minOut,{bytes:bytes(recipient)}]);}
  addLiquidity(lpOwner:string,x:bigint,y:bigint,minShares:bigint){uint64(x);uint64(y);uint64(minShares);return this.transport.call('addLiquidity',[bytes(lpOwner),x,y,minShares]);}
- removeLiquidity(secret:string,shares:bigint,minX:bigint,minY:bigint,recipient:string){uint64(shares);if(minX<0n||minY<0n||minX>=1n<<64n||minY>=1n<<64n)throw new Error('invalid withdrawal minima');return this.transport.call('removeLiquidity',[bytes(secret),shares,minX,minY,{bytes:bytes(recipient)}]);}
+ removeLiquidity(secret:string,shares:bigint,minX:bigint,minY:bigint,recipient:string){uint64(shares);u64(minX);u64(minY);return this.transport.call('removeLiquidity',[bytes(secret),shares,minX,minY,{bytes:bytes(recipient)}]);}
 }

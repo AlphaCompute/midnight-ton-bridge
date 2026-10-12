@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+. scripts/toolchain.env
 case "$(uname -s)-$(uname -m)" in
  Darwin-arm64) platform=aarch64-darwin;; Darwin-x86_64) platform=x86_64-darwin;;
  Linux-x86_64) platform=x86_64-unknown-linux-musl;; Linux-aarch64) platform=aarch64-unknown-linux-musl;;
- *) echo 'Set COMPACTC for this platform' >&2; platform=unknown;;
+ *) [[ -n "${COMPACTC:-}" ]] || { echo 'Set COMPACTC for this platform' >&2; exit 1; }; platform=unknown;;
 esac
-compiler="${COMPACTC:-$PWD/.tools/compact/versions/0.31.1/$platform/compactc}"
+compiler="${COMPACTC:-$PWD/.tools/compact/versions/$COMPACT_VERSION/$platform/compactc}"
 export RAYON_NUM_THREADS="${RAYON_NUM_THREADS:-2}"
 fingerprint="$(shasum -a 256 contracts/midnight/bridge.compact | cut -d ' ' -f 1)-$("$compiler" --version)"
 if [[ ! -f build/midnight/.source-fingerprint ]] || [[ "$(cat build/midnight/.source-fingerprint)" != "$fingerprint" ]]; then

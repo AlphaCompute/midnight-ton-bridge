@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {Address} from '@ton/core';
 import {CompactTypeBytes,CompactTypeUnsignedInteger,persistentHash,type CompactType,type ContractState} from '@midnight-ntwrk/compact-runtime';
 import {ledger} from '../build/midnight/contract/index.js';
-import {assertAsset,releaseDigest,uint64} from './ton.js';
+import {assertAsset,releaseDigest,positiveUint64} from './ton.js';
 import {circuitNames,type CircuitName} from './midnight.js';
 import {HEX32} from './encoding.js';
 const sha256Hex=(x:Uint8Array)=>createHash('sha256').update(x).digest('hex');
@@ -14,7 +14,7 @@ const redemptionTuple:CompactType<[bigint,bigint,Uint8Array]>={
  fromValue:v=>[u8.fromValue(v),u64.fromValue(v),bytes32.fromValue(v)]
 };
 export function redemptionCommitment(asset:0|1,amount:bigint,recipient:Address){
- assertAsset(asset);uint64(amount);
+ assertAsset(asset);positiveUint64(amount);
  if(recipient.workChain!==0)throw new Error('only basechain supported');
  return persistentHash(redemptionTuple,[BigInt(asset),amount,recipient.hash]);
 }

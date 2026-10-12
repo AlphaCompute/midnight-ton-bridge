@@ -5,7 +5,7 @@ import {randomBytes} from 'node:crypto';
 import {TonClient4,WalletContractV4} from '@ton/ton';
 import {Cell,beginCell,internal,toNano} from '@ton/core';
 import {keyPairFromSeed} from '@ton/crypto';
-import {escrowData,TonContract} from '../src/ton.js';
+import {BRIDGE_CAP,legacyEscrowData,TonContract} from '../src/ton.js';
 
 // Prepare is the default. --send uses an explicitly funded TESTNET wallet.
 const send=process.argv.includes('--send');
@@ -23,8 +23,8 @@ const domain=process.env.BRIDGE_DOMAIN;if(!domain||!/^[a-f0-9]{64}$/i.test(domai
 const walletCode=code('test-wallet'),escrowCode=code('escrow'),minterCode=code('test-minter');
 // Different test supply caps make the two fixture minter deployments distinct.
 const assets=[0,1].map(asset=>{
- const minter=TonContract.create(minterCode,beginCell().storeAddress(wallet.address).storeRef(walletCode).storeUint(0,64).storeUint(1_000_000_000_000n-BigInt(asset),64).endCell());
- const data=escrowData(Buffer.from(domain,'hex'),committee,minter.address,walletCode),escrow=TonContract.create(escrowCode,data);
+ const minter=TonContract.create(minterCode,beginCell().storeAddress(wallet.address).storeRef(walletCode).storeUint(0,64).storeUint(BRIDGE_CAP-BigInt(asset),64).endCell());
+ const data=legacyEscrowData(Buffer.from(domain,'hex'),committee,minter.address,walletCode),escrow=TonContract.create(escrowCode,data);
  return {asset,minter,escrow,configHash:data.beginParse().loadRef().hash().toString('hex')};
 });
 const plan={network:'ton-testnet',fundingAddress:wallet.address.toString({testOnly:true}),domain,assets:assets.map(a=>({asset:a.asset,master:a.minter.address.toRawString(),escrow:a.escrow.address.toRawString(),configHash:a.configHash,codeHash:escrowCode.hash().toString('hex')}))};

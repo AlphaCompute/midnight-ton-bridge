@@ -36,7 +36,7 @@ Local claims are deliberately synthetic. TON execution is covered separately by 
 
 ## Deploy to public testnet
 
-Public testnet means **TON testnet + Midnight preprod**. Start only the proof server when using public Midnight endpoints. Avoid a local `.env` overriding public URLs: the default `.env.example` intentionally leaves endpoint overrides commented out.
+Public testnet means **TON testnet + Midnight preprod**. Midnight retired its hosted preprod indexer and RPC on 9 October 2026; preprod is now served by [Blockfrost](https://docs.midnight.network/guides/networks-and-environments#blockfrost-the-mainnet-indexer-and-rpc-provider). Create a Blockfrost project for **Midnight Preprod** and set `BLOCKFROST_PROJECT_ID` (it starts with `nightpreprod`) in `.env`; every preprod command derives its node and indexer URLs from it. Signer configurations (`indexer`, `indexerWS`) must use the same Blockfrost URLs with `?project_id=`. Keep the token out of logs and shared files. Start only the proof server when using public Midnight endpoints. Avoid a local `.env` overriding public URLs: the default `.env.example` intentionally leaves endpoint overrides commented out.
 
 ```sh
 export BRIDGE_NETWORK=preprod

@@ -5,6 +5,7 @@ import {randomBytes} from 'node:crypto';
 import {newSigningKey,verifyingKey} from '../src/midnight.js';
 import {statePins} from '../src/redemptions.js';
 import {openMidnight} from '../src/live-midnight.js';
+import {BRIDGE_CAP} from '../src/ton.js';
 stateDirectory();
 const destination=statePath('midnight-deployment.json');
 if(existsSync(destination))throw new Error('Deployment record exists; do not duplicate an existing deployment');
@@ -29,7 +30,7 @@ if(existsSync(intentPath)){
 }else writeFileSync(intentPath,JSON.stringify({domain:domain.toString('hex'),network:network(),started:new Date().toISOString()}),{mode:0o600,flag:'wx'});
 const client=await openMidnight();
 try{
- const deployed=await client.deploy(domain,committee,1_000_000_000_000n);
+ const deployed=await client.deploy(domain,committee,BRIDGE_CAP);
  const state=await client.providers.publicDataProvider.queryContractState(deployed.deployTxData.public.contractAddress);if(!state)throw new Error('deployed state absent');
  writeFileSync(destination,JSON.stringify({pins:statePins(state),network:client.env.networkId,address:deployed.deployTxData.public.contractAddress,domain:domain.toString('hex'),committee:committee},(_,v)=>typeof v==='bigint'?v.toString():v,2),{mode:0o600,flag:'wx'});
  console.log(`Deployment recorded in ${destination}`);

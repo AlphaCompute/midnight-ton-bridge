@@ -11,7 +11,7 @@ import {createConstructorContext,createCircuitContext,sampleContractAddress} fro
 import {verifyingKey,signClaim,witnesses} from '../src/midnight.js';
 import {depositId} from '../src/receipts.js';
 import {compileTon} from '../scripts/compile-ton.js';
-import {TonContract,escrowData,jettonWallet,transferBody,releaseDigest,releaseBody,signRelease,refundBody} from '../src/ton.js';
+import {TonContract,legacyEscrowData,jettonWallet,transferBody,releaseDigest,releaseBody,signRelease,refundBody} from '../src/ton.js';
 
 test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adversarial rejection',async()=>{
   const code=async(n:string)=>Cell.fromBase64((await compileTon(n)).codeBoc64);
@@ -21,7 +21,7 @@ test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adver
   const domain=Buffer.alloc(32,55);
   const minter=chain.openContract(TonContract.create(minterCode,beginCell().storeAddress(owner.address).storeRef(walletCode).storeUint(0,64).storeUint(1_000_000,64).endCell()));
   await minter.send(owner.getSender());
-  const escrow=chain.openContract(TonContract.create(escrowCode,escrowData(domain,keys.map(k=>k.publicKey),minter.address,walletCode,1000n)));
+  const escrow=chain.openContract(TonContract.create(escrowCode,legacyEscrowData(domain,keys.map(k=>k.publicKey),minter.address,walletCode,1000n)));
   await escrow.send(owner.getSender());
   await minter.send(owner.getSender(),beginCell().storeUint(0x4d494e54,32).storeAddress(user.address).storeUint(10000,64).endCell());
   const wallet=chain.openContract(jettonWallet(user.address,minter.address,walletCode));

@@ -15,6 +15,7 @@ import {createUnprovenDeployTx,submitTx,submitCallTx} from '@midnight-ntwrk/midn
 import {Contract} from '../build/midnight/contract/index.js';
 import {witnesses} from './midnight.js';
 import {Journal} from './journal.js';
+import {midnightEndpoints} from './midnight-endpoints.js';
 import {mkdirSync,writeFileSync,existsSync,readFileSync,openSync,closeSync,unlinkSync} from 'node:fs';
 import {sampleSigningKey,ContractState,ContractDeploy,ContractMaintenanceAuthority,Transaction,Intent,unshieldedToken} from '@midnight-ntwrk/ledger-v8';
 
@@ -22,12 +23,7 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
  const network=configuredNetwork();
  if(network!=='local'&&network!=='preprod')throw new Error('test networks only');
  const local=network==='local',networkId=local?'undeployed':'preprod';
- const env:EnvironmentConfiguration={walletNetworkId:networkId,networkId,
-  node:process.env.MIDNIGHT_NODE_URL??(local?'http://127.0.0.1:19944':'https://rpc.preprod.midnight.network'),
-  nodeWS:process.env.MIDNIGHT_NODE_WS??(local?'ws://127.0.0.1:19944':'wss://rpc.preprod.midnight.network'),
-  indexer:process.env.MIDNIGHT_INDEXER_URL??(local?'http://127.0.0.1:18088/api/v3/graphql':'https://indexer.preprod.midnight.network/api/v3/graphql'),
-  indexerWS:process.env.MIDNIGHT_INDEXER_WS??(local?'ws://127.0.0.1:18088/api/v3/graphql/ws':'wss://indexer.preprod.midnight.network/api/v3/graphql/ws'),
-  proofServer:process.env.MIDNIGHT_PROOF_SERVER??'http://127.0.0.1:16300',faucet:undefined};
+ const env:EnvironmentConfiguration={walletNetworkId:networkId,networkId,...midnightEndpoints(network),faucet:undefined};
  const seed=process.env.MIDNIGHT_SEED??(local?'0'.repeat(63)+'1':readSecret<{seed:string}>(process.env.MIDNIGHT_SEED_FILE??statePath('midnight-test-wallet.json')).seed);
  if(!seed||!/^[a-f0-9]{64}$/i.test(seed))throw new Error('MIDNIGHT_SEED must be 32-byte hex');
  setNetworkId(networkId);
@@ -35,7 +31,9 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
  globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
  const lockPath=statePath('midnight-wallet.lock'),lockFd=openSync(lockPath,'wx',0o600);
  writeFileSync(lockFd,JSON.stringify({pid:process.pid,network:networkId}));
- const unlock=()=>{closeSync(lockFd);unlinkSync(lockPath);};
+ // Released on any exit, including SDK crashes from unhandled socket errors; journals,
+ // not this lock, guard against duplicate transactions.
+ let locked=true;const unlock=()=>{if(!locked)return;locked=false;process.off('exit',unlock);closeSync(lockFd);unlinkSync(lockPath);};process.once('exit',unlock);
  let built:Awaited<ReturnType<typeof buildPersistentWallet>>;
  try{built=await buildPersistentWallet(env,seed);}catch(error){unlock();throw error;}
  const wallet=built.provider;
@@ -103,7 +101,13 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
    if(!confirmed||confirmed.maintenanceAuthority.committee.length!==0||confirmed.maintenanceAuthority.threshold!==1)throw new Error('immutable authority verification failed');
    return {deployTxData:{public:{...final,contractAddress:deployment.address}}};
   },
-  reconcile:async(id:string)=>{const data=await providers.publicDataProvider.watchForTxData(id);finalize(data);return {status:data.status,txId:data.txId,blockHeight:data.blockHeight};},
+  // Absence within the wait is not rejection; the entry stays pending for a later reconcile.
+  reconcile:async(id:string,waitMs=120000)=>{
+   let timer:ReturnType<typeof setTimeout>|undefined;
+   const data=await Promise.race([providers.publicDataProvider.watchForTxData(id),new Promise<null>(r=>{timer=setTimeout(()=>r(null),waitMs);})]).finally(()=>clearTimeout(timer));
+   if(!data)return {status:'pending' as const,txId:id};
+   finalize(data);return {status:data.status,txId:data.txId,blockHeight:data.blockHeight};
+  },
   call:async(address:string,circuit:'claim'|'redeem'|'addLiquidity'|'swap'|'removeLiquidity',args:unknown[])=>{
    if(journal.list().some(r=>r.stage==='prepared'||r.stage==='sending'||r.stage==='submitted'))throw new Error('Reconcile pending Midnight transactions before another call');
    // This contract has no persistent private application state. Restore its empty

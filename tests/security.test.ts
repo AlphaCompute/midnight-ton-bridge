@@ -66,3 +66,15 @@ test('TON RPC identity rejects a mislabeled mainnet or unknown endpoint',async()
  assert.doesNotThrow(()=>assertTonTestnet({init:{rootHash:TON_TESTNET_ZERO_STATE}}));
  assert.throws(()=>assertTonTestnet({init:{rootHash:'wrong-chain'}}),/not the pinned/);
 });
+
+test('preprod Midnight endpoints require a Blockfrost preprod token and never fall back to retired hosts',async()=>{
+ const {midnightEndpoints,redactEndpoints}=await import('../src/midnight-endpoints.js');
+ assert.throws(()=>midnightEndpoints('preprod',{}),/BLOCKFROST_PROJECT_ID/);
+ assert.throws(()=>midnightEndpoints('preprod',{BLOCKFROST_PROJECT_ID:'nightmainnetABC'}),/Preprod/);
+ const e=midnightEndpoints('preprod',{BLOCKFROST_PROJECT_ID:'nightpreprodABC'});
+ assert.equal(e.indexer,'https://midnight-preprod.blockfrost.io/api/v0?project_id=nightpreprodABC');assert.equal(e.nodeWS,'wss://rpc.midnight-preprod.blockfrost.io?project_id=nightpreprodABC');
+ assert(Object.values(e).every(u=>!u.includes('midnight.network')));
+ assert.equal(midnightEndpoints('preprod',{MIDNIGHT_NODE_URL:'a',MIDNIGHT_NODE_WS:'b',MIDNIGHT_INDEXER_URL:'c',MIDNIGHT_INDEXER_WS:'d'}).indexer,'c');
+ assert.equal(midnightEndpoints('local',{}).indexer,'http://127.0.0.1:18088/api/v3/graphql');
+ assert.equal(redactEndpoints(`request to ${e.indexer} failed`),'request to https://midnight-preprod.blockfrost.io/api/v0?project_id=REDACTED failed');
+});

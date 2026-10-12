@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {Address} from '@ton/core';
 import {CompactTypeBytes,CompactTypeUnsignedInteger,persistentHash,type CompactType} from '@midnight-ntwrk/compact-runtime';
-import type {ContractState} from '@midnight-ntwrk/ledger-v8';
+import type {ContractState} from '@midnight-ntwrk/compact-runtime';
 import {ledger} from '../build/midnight/contract/index.js';
 import {releaseDigest,uint64} from './ton.js';
 export const circuitNames=['claim','redeem','addLiquidity','swap','removeLiquidity'] as const;
@@ -24,14 +24,20 @@ export function statePins(state:ContractState):MidnightPins{
  for(const name of circuitNames){const op=state.operation(name);if(!op)throw new Error(`missing circuit ${name}`);verifiers[name]=hash(op.verifierKey);}
  return {domain:Buffer.from(ledger(state.data).domain).toString('hex'),maintenanceHash:hash(state.maintenanceAuthority.serialize()),verifiers};
 }
+/** Exact release digest for a retirement recorded in contract ledger data. Callers
+ * must separately establish that the data is pinned and finalized. */
+export function retirementRelease(data:ReturnType<typeof ledger>,domain:string,request:RedemptionRequest,escrows:[string,string]){
+ if(!/^[0-9a-f]{64}$/i.test(request.id))throw new Error('invalid redemption id');
+ if(request.asset!==0&&request.asset!==1)throw new Error('invalid asset');
+ const id=Buffer.from(request.id,'hex'),recipient=Address.parse(request.recipient),amount=BigInt(request.amount),commitment=redemptionCommitment(request.asset,amount,recipient);
+ if(!data.retired.member(id)||!Buffer.from(data.retired.lookup(id)).equals(commitment))throw new Error('retirement is absent or differs from requested release');
+ return releaseDigest(Address.parse(escrows[request.asset]),Buffer.from(domain,'hex'),id,amount,recipient);
+}
 /** Only call with a state snapshot from a successful, finalized transaction's block,
  * fetched independently by this committee member from its trusted indexer. */
 export function verifyRedemption(state:ContractState,pins:MidnightPins,request:RedemptionRequest,escrows:[string,string]){
  const actual=statePins(state);
  if(actual.domain!==pins.domain||actual.maintenanceHash!==pins.maintenanceHash)throw new Error('unexpected domain or maintenance authority');
  if(state.operations().length!==circuitNames.length||circuitNames.some(n=>actual.verifiers[n]!==pins.verifiers[n]))throw new Error('unexpected verifier set');
- if(!/^[0-9a-f]{64}$/i.test(request.id))throw new Error('invalid redemption id');
- const id=Buffer.from(request.id,'hex'),recipient=Address.parse(request.recipient),amount=BigInt(request.amount),commitment=redemptionCommitment(request.asset,amount,recipient),data=ledger(state.data);
- if(!data.retired.member(id)||!Buffer.from(data.retired.lookup(id)).equals(commitment))throw new Error('retirement is absent or differs from requested release');
- return releaseDigest(Address.parse(escrows[request.asset]),Buffer.from(pins.domain,'hex'),id,amount,recipient);
+ return retirementRelease(ledger(state.data),pins.domain,request,escrows);
 }

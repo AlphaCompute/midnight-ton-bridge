@@ -82,7 +82,9 @@ const body = bridge.depositMessage(
   tonSender,
   1n,                   // query ID
 );
-// Send body to the sender's verified jetton wallet.
+// Send body to the sender's verified jetton wallet with DEPOSIT_ATTACHED_TON (0.1 TON).
+// It forwards DEPOSIT_FORWARD_TON to pay the escrow; a transfer that forwards less
+// (wallet apps often forward 1 nanoton) needs committee-attested recovery as a refund.
 ```
 
 `config` supplies the network (`local` or `preprod`), route domain, Midnight contract address, two TON escrows and three committee public keys. `transport` implements `call(circuit, args): Promise<string>`. Use finalized chain readback to confirm delivery.

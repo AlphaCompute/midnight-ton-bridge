@@ -8,3 +8,10 @@ test('starter stores notes, rejects invalid input, and fails closed without brid
  assert.equal((await post('/notes',{text:''})).status,400);assert.equal((await post('/bridge/prepare',{})).status,503);
  }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
 });
+test('note storage is bounded',async()=>{
+ const server=start(0,{maxNotes:3});await once(server,'listening');const base=`http://127.0.0.1:${server.address().port}`;
+ try{const post=data=>fetch(base+'/notes',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(data)});
+  for(let i=0;i<3;i++)assert.equal((await post({text:'n'+i})).status,201);
+  assert.equal((await post({text:'overflow'})).status,507);
+ }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
+});

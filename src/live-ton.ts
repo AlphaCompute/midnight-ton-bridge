@@ -1,7 +1,7 @@
 import {assertTonSendAvailable,nextAttemptId} from './ton-send-guard.js';
 import {assertTonTestnet} from './ton-network.js';
-import {readFileSync,openSync,closeSync,unlinkSync} from 'node:fs';
-import {Cell,type MessageRelaxed} from '@ton/core';
+import {openSync,closeSync,unlinkSync} from 'node:fs';
+import {type MessageRelaxed} from '@ton/core';
 import {TonClient4,WalletContractV4} from '@ton/ton';
 import {keyPairFromSeed} from '@ton/crypto';
 import {readSecret,statePath,network} from './environment.js';

@@ -1,6 +1,6 @@
 import {openTon} from '../src/live-ton.js';
 import {internal} from '@ton/core';
-import {network,statePath,stateDirectory} from '../src/environment.js';
+import {statePath} from '../src/environment.js';
 import {readFileSync} from 'node:fs';
 import {Address,beginCell,toNano} from '@ton/core';
 import {uint64} from '../src/ton.js';

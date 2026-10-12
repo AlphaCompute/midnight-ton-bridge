@@ -2,7 +2,7 @@ import {redemptionCommitment} from '../src/redemptions.js';
 import {Address} from '@ton/core';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createConstructorContext,createCircuitContext, sampleContractAddress,persistentHash,CompactTypeBytes,decodeContractAddress} from '@midnight-ntwrk/compact-runtime';
+import {createConstructorContext,createCircuitContext,sampleContractAddress,persistentHash,CompactTypeBytes} from '@midnight-ntwrk/compact-runtime';
 import {Contract,ledger,pureCircuits} from '../build/midnight/contract/index.js';
 import {verifyingKey,signClaim,verifyClaim,witnesses,quoteSwap} from '../src/midnight.js';
 
@@ -40,10 +40,14 @@ test('compiled Midnight circuit: pool invariant, slippage, LP authentication and
  assert.throws(()=>s.contract.impureCircuits.removeLiquidity(s.context,Buffer.alloc(32,1),100n,0n,0n,recipient),/unknown LP/);
  s.context=s.contract.impureCircuits.removeLiquidity(s.context,secret,5000n,0n,0n,recipient).context;
  assert.deepEqual(s.state.reserve,[0n,0n]);
- s.context=s.contract.impureCircuits.redeem(s.context,Buffer.alloc(32,88),0n,100n,Buffer.alloc(32,12)).context;
+ const nonce=Buffer.alloc(32,88),id=Buffer.from(pureCircuits.redemptionId(nonce));
+ s.context=s.contract.impureCircuits.redeem(s.context,nonce,0n,100n,Buffer.alloc(32,12)).context;
  assert.equal(s.state.circulating[0],9900n);
- assert.deepEqual(s.state.retired.lookup(Buffer.alloc(32,88)),redemptionCommitment(0,100n,new Address(0,Buffer.alloc(32,12))));
- assert.throws(()=>s.contract.impureCircuits.redeem(s.context,Buffer.alloc(32,88),0n,100n,Buffer.alloc(32,12)),/replayed redemption/);
+ assert.deepEqual(s.state.retired.lookup(id),redemptionCommitment(0,100n,new Address(0,Buffer.alloc(32,12))));
+ assert.throws(()=>s.contract.impureCircuits.redeem(s.context,nonce,0n,100n,Buffer.alloc(32,12)),/replayed redemption/);
+ // Only the hash is public: retiring with the observed ID as a nonce yields another ID,
+ // so a front-runner cannot occupy a pending redemption's ID.
+ assert(!Buffer.from(pureCircuits.redemptionId(id)).equals(id));assert(!s.state.retired.member(nonce));
 });
 
 test('claim binds contract, domain, asset and recipient; cap and quorum fail closed',()=>{

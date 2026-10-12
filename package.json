@@ -23,6 +23,7 @@
     "mint:ton": "tsx --env-file-if-exists=.env scripts/mint-ton.ts",
     "prepare:testnet": "tsx --env-file-if-exists=.env scripts/prepare-testnet.ts",
     "demo:testnet": "tsx --env-file-if-exists=.env scripts/demo-testnet.ts",
+    "demo:unrecorded": "tsx --env-file-if-exists=.env scripts/demo-unrecorded.ts",
     "verify:ton": "tsx --env-file-if-exists=.env scripts/verify-ton.ts",
     "fund:ton": "tsx --env-file-if-exists=.env scripts/fund-ton-testnet.ts",
     "wallet:sync": "tsx --env-file-if-exists=.env scripts/wallet-sync.ts",

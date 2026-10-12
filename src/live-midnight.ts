@@ -3,9 +3,8 @@ import {buildPersistentWallet} from './wallet-builder.js';
 import {firstValueFrom,filter,timeout} from 'rxjs';
 import {network as configuredNetwork,readSecret,statePath,stateDirectory} from './environment.js';
 import {resolve} from 'node:path';
-import pino from 'pino';
 import WebSocket from 'ws';
-import {MidnightWalletProvider,inMemoryPrivateStateProvider,type EnvironmentConfiguration} from '@midnight-ntwrk/testkit-js';
+import {inMemoryPrivateStateProvider,type EnvironmentConfiguration} from '@midnight-ntwrk/testkit-js';
 import {setNetworkId} from '@midnight-ntwrk/midnight-js-network-id';
 import {indexerPublicDataProvider} from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import {NodeZkConfigProvider} from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
@@ -16,7 +15,7 @@ import {Contract} from '../build/midnight/contract/index.js';
 import {witnesses} from './midnight.js';
 import {Journal} from './journal.js';
 import {midnightEndpoints} from './midnight-endpoints.js';
-import {mkdirSync,writeFileSync,existsSync,readFileSync,openSync,closeSync,unlinkSync} from 'node:fs';
+import {writeFileSync,openSync,closeSync,unlinkSync} from 'node:fs';
 import {sampleSigningKey,ContractState,ContractDeploy,ContractMaintenanceAuthority,Transaction,Intent,unshieldedToken} from '@midnight-ntwrk/ledger-v8';
 
 export async function openMidnight(options:{waitForFunds?:boolean}={}){
@@ -27,7 +26,7 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
  const seed=process.env.MIDNIGHT_SEED??(local?'0'.repeat(63)+'1':readSecret<{seed:string}>(process.env.MIDNIGHT_SEED_FILE??statePath('midnight-test-wallet.json')).seed);
  if(!seed||!/^[a-f0-9]{64}$/i.test(seed))throw new Error('MIDNIGHT_SEED must be 32-byte hex');
  setNetworkId(networkId);
- // SDK wallet builder logs its seed to the supplied logger. Suppress it entirely.
+ // Wallet and indexer clients expect a global WebSocket implementation.
  globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
  const lockPath=statePath('midnight-wallet.lock'),lockFd=openSync(lockPath,'wx',0o600);
  writeFileSync(lockFd,JSON.stringify({pid:process.pid,network:networkId}));

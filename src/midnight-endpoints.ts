@@ -16,6 +16,18 @@ export function midnightEndpoints(network:Network,env:NodeJS.ProcessEnv=process.
  return {node:need(env.MIDNIGHT_NODE_URL,'https://rpc.midnight-preprod.blockfrost.io'),nodeWS:need(env.MIDNIGHT_NODE_WS,'wss://rpc.midnight-preprod.blockfrost.io'),
   indexer:need(env.MIDNIGHT_INDEXER_URL,'https://midnight-preprod.blockfrost.io/api/v0'),indexerWS:need(env.MIDNIGHT_INDEXER_WS,'wss://midnight-preprod.blockfrost.io/api/v0/ws'),proofServer};
 }
+/** Indexer endpoints for read-only tools. An explicit MIDNIGHT_INDEXER_URL wins; its
+ * WebSocket defaults to the same URL with a ws scheme and `/ws` path, keeping any query. */
+export function midnightIndexer(network:Network,env:NodeJS.ProcessEnv=process.env):{indexer:string;indexerWS:string}{
+ const indexer=env.MIDNIGHT_INDEXER_URL;
+ if(indexer){
+  if(indexer.includes('project_id='))redactProcessOutput();
+  const ws=new URL(indexer);ws.protocol=ws.protocol==='https:'?'wss:':'ws:';ws.pathname=ws.pathname.replace(/\/?$/,'/ws');
+  return {indexer,indexerWS:env.MIDNIGHT_INDEXER_WS??ws.toString()};
+ }
+ const e=midnightEndpoints(network,{...env,MIDNIGHT_NODE_URL:'unused',MIDNIGHT_NODE_WS:'unused'});
+ return {indexer:e.indexer,indexerWS:e.indexerWS};
+}
 /** Removes Blockfrost tokens from text before it is logged. */
 export const redactEndpoints=(text:string)=>text.replace(/project_id=[^&\s"']+/g,'project_id=REDACTED');
 let redacting=false;

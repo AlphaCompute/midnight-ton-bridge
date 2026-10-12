@@ -1,9 +1,9 @@
 {
   "network": "TON-testnet/Midnight-preprod",
-  "domain": "f8266af832df0f56a7d30e0d0112d0cc3d3e502cdaadcdc35328c5ffd98656a2",
-  "midnight": "5feae60c427244f4c84c3c46dd64499075fa552dfed99ce4b913b814ba486513",
+  "domain": "ffca97198ce4659e1fa24796ece6a4ecfa8454e681a4419ee6fd4cae38968fab",
+  "midnight": "820d2caea47823fa584c44544bdbce818801d870e375280effcb10448f3cfefc",
   "pins": {
-    "domain": "f8266af832df0f56a7d30e0d0112d0cc3d3e502cdaadcdc35328c5ffd98656a2",
+    "domain": "ffca97198ce4659e1fa24796ece6a4ecfa8454e681a4419ee6fd4cae38968fab",
     "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",
     "verifiers": {
       "claim": "06fd3b5df85a5a056bae8ebd8f46b3268efa6988e714556785deab4b1da0ef86",
@@ -18,79 +18,79 @@
       "asset": 0,
       "symbol": "BRIDGE-0",
       "decimals": 6,
-      "master": "0:056f48bd15f1c95ccbf0f67b972724f218b6315cfe05f7aa4dd6ccbebd0c6f73",
+      "master": "0:ec89ec965a2ab3c89fa70123e5f924647977429d63fc85b9ba55a2a679256d2f",
       "masterCodeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
       "walletCodeBoc": "te6cckECEgEAAzQAART/APSkE/S88sgLAQIBYgIRAgLMAwYCAdQEBQDDCDHAJJfBOAB0NMDAXGwlRNfA/AL4PpA+kAx+gAxcdch+gAx+gAwc6m0AALTH4IQD4p+pVIgupUxNFnwCOCCEBeNRRlSILqWMUREA/AJ4DWCEFlfB7y6k1nwCuBfBIQP8vCAAET6RDBwuvLhTYAIBSAcOAgEgCAoB8QD0z/6APpAIfAB7UTQ+gD6QPpA1DBRNqFSKscF8uLBKML/8uLCVDRCcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMkg+QBwdMjLAsoHy//J0AT6QPQEMfoAINdJwgDy4sR3gBjIywVQCM8WcPoCF8trE8yAJAK6CEBeNRRnIyx8Zyz9QB/oCIs8WUAbPFiX6AlADzxbJUAXMI5FykXHiUAioE6CCCOThwKoAggiYloCgoBS88uLFBMmAQPsAECPIUAT6AljPFgHPFszJ7VQD9ztRND6APpA+kDUMAjTP/oAUVGgBfpA+kBTW8cFVHNtcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMn5AHB0yMsCygfL/8nQUA3HBRyx8uLDCvoAUaihggiYloCCCJiWgBK2CKGCCOThwKAYoSfjDyXXCwHDACOALDA0AcFJ5oBihghBzYtCcyMsfUjDLP1j6AlAHzxZQB88WyXGAEMjLBSTPFlAG+gIVy2oUzMlx+wAQJBAjAA4QSRA4N18EAHbCALCOIYIQ1TJ223CAEMjLBVAIzxZQBPoCFstqEssfEss/yXL7AJM1bCHiA8hQBPoCWM8WAc8WzMntVAIBIA8QANs7UTQ+gD6QPpA1DAH0z/6APpAMFFRoVJJxwXy4sEnwv/y4sKCCOThwKoAFqAWvPLiw4IQe92X3sjLHxXLP1AD+gIizxYBzxbJcYAYyMsFJM8WcPoCy2rMyYBA+wBAE8hQBPoCWM8WAc8WzMntVIACDIAg1yHtRND6APpA+kDUMATTH4IQF41FGVIguoIQe92X3hO6ErHy4sXTPzH6ADAToFAjyFAE+gJYzxYBzxbMye1UgABug9gXaiaH0AfSB9IGoYfCn2Es=",
       "walletCodeHash": "a760d629d5343e76d045017d9dc216fc8a307a8377815feb2b0a5c490e733486",
       "cap": "1000000000000",
       "adapter": "tep74-reference",
-      "escrow": "0:ab51b7983bf4a781e71a1596614098491a0ebcd090f64de88d497dc08c42ef97",
-      "codeHash": "69a765abd7cd9278a10e39d4fd08c336ed683b5b0ccd6ecfeccb513c57290f00",
-      "configHash": "f948b15eef7fdfa246dc275662b76ac88860d44b80a7edbc29abac46d86b0aa2"
+      "escrow": "0:8fb2e8906947cf5f8603be3880759f3a370bd16087e5b2064e1c75fc51638686",
+      "codeHash": "97f574cf97f0c633d66f843caac2f156ae230da4c219da0220e9e0f7cecf721d",
+      "configHash": "a441f57329a12f2737b0e49498bfaa8c4fd30fc1e0bda4efb4473041c520a430"
     },
     {
       "asset": 1,
       "symbol": "BRIDGE-1",
       "decimals": 6,
-      "master": "0:f482d8e844ac1d5f4a409ab25c343f15ef2081aac3423ba86e49467de656cbb3",
+      "master": "0:53b77589881454e04114c162bf67ed0a7a8f64a5e01383f136da7cefb0cc6dd9",
       "masterCodeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
       "walletCodeBoc": "te6cckECEgEAAzQAART/APSkE/S88sgLAQIBYgIRAgLMAwYCAdQEBQDDCDHAJJfBOAB0NMDAXGwlRNfA/AL4PpA+kAx+gAxcdch+gAx+gAwc6m0AALTH4IQD4p+pVIgupUxNFnwCOCCEBeNRRlSILqWMUREA/AJ4DWCEFlfB7y6k1nwCuBfBIQP8vCAAET6RDBwuvLhTYAIBSAcOAgEgCAoB8QD0z/6APpAIfAB7UTQ+gD6QPpA1DBRNqFSKscF8uLBKML/8uLCVDRCcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMkg+QBwdMjLAsoHy//J0AT6QPQEMfoAINdJwgDy4sR3gBjIywVQCM8WcPoCF8trE8yAJAK6CEBeNRRnIyx8Zyz9QB/oCIs8WUAbPFiX6AlADzxbJUAXMI5FykXHiUAioE6CCCOThwKoAggiYloCgoBS88uLFBMmAQPsAECPIUAT6AljPFgHPFszJ7VQD9ztRND6APpA+kDUMAjTP/oAUVGgBfpA+kBTW8cFVHNtcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMn5AHB0yMsCygfL/8nQUA3HBRyx8uLDCvoAUaihggiYloCCCJiWgBK2CKGCCOThwKAYoSfjDyXXCwHDACOALDA0AcFJ5oBihghBzYtCcyMsfUjDLP1j6AlAHzxZQB88WyXGAEMjLBSTPFlAG+gIVy2oUzMlx+wAQJBAjAA4QSRA4N18EAHbCALCOIYIQ1TJ223CAEMjLBVAIzxZQBPoCFstqEssfEss/yXL7AJM1bCHiA8hQBPoCWM8WAc8WzMntVAIBIA8QANs7UTQ+gD6QPpA1DAH0z/6APpAMFFRoVJJxwXy4sEnwv/y4sKCCOThwKoAFqAWvPLiw4IQe92X3sjLHxXLP1AD+gIizxYBzxbJcYAYyMsFJM8WcPoCy2rMyYBA+wBAE8hQBPoCWM8WAc8WzMntVIACDIAg1yHtRND6APpA+kDUMATTH4IQF41FGVIguoIQe92X3hO6ErHy4sXTPzH6ADAToFAjyFAE+gJYzxYBzxbMye1UgABug9gXaiaH0AfSB9IGoYfCn2Es=",
       "walletCodeHash": "a760d629d5343e76d045017d9dc216fc8a307a8377815feb2b0a5c490e733486",
       "cap": "1000000000000",
       "adapter": "tep74-reference",
-      "escrow": "0:8e6a42d5124f24b7709633876943ab107ce28766070b448d0a7e0b9f1c5d65e2",
-      "codeHash": "69a765abd7cd9278a10e39d4fd08c336ed683b5b0ccd6ecfeccb513c57290f00",
-      "configHash": "2e923dbd6215d8a12aad387538e55d01da889c413bde31197a1cc6d309e0b371"
+      "escrow": "0:51a8c3d9cc3445d7492d4277635750099571cac7152d5de9ebdc16ccb70e4287",
+      "codeHash": "97f574cf97f0c633d66f843caac2f156ae230da4c219da0220e9e0f7cecf721d",
+      "configHash": "cf7ff5648fe4203f3a2e5fa021076430e8ca627d3abf25321aa221e5dda3d8a1"
     }
   ],
   "tonVerification": {
     "network": "ton-testnet",
     "block": {
-      "seqno": 84895549,
+      "seqno": 90803768,
       "shard": "-9223372036854775808",
       "workchain": -1,
-      "fileHash": "4+nX4MagxZnQUeFmdOtel4MOiazDo+0wTJNRhkyi7c0=",
-      "rootHash": "vPoF1rPlDFU7hTYjQ81O4qvcCf4794hr2zxQ0iwbBEc="
+      "fileHash": "ffNtzWDvz3KHSX0ujEykVK+hLFHa6t0MiOAkQ4DPxQY=",
+      "rootHash": "E+Wd7tuKIkTeZXSkilcy8cqfpsVd72Uz5hP6eTb01FQ="
     },
     "results": [
       {
         "asset": 0,
         "role": "minter",
-        "address": "0:056f48bd15f1c95ccbf0f67b972724f218b6315cfe05f7aa4dd6ccbebd0c6f73",
+        "address": "0:ec89ec965a2ab3c89fa70123e5f924647977429d63fc85b9ba55a2a679256d2f",
         "codeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
         "last": {
-          "lt": "96594237000003",
-          "hash": "smDZ5TMWHD14LWi8YJagEml6jxY7Oo2LW/r7v5S4WnI="
+          "lt": "102585819000003",
+          "hash": "Y/po/Cg1lG7MkhcYkfB5tWFP3L53bDHoGvMlKV4dWrc="
         }
       },
       {
         "asset": 0,
         "role": "escrow",
-        "address": "0:ab51b7983bf4a781e71a1596614098491a0ebcd090f64de88d497dc08c42ef97",
-        "codeHash": "69a765abd7cd9278a10e39d4fd08c336ed683b5b0ccd6ecfeccb513c57290f00",
+        "address": "0:8fb2e8906947cf5f8603be3880759f3a370bd16087e5b2064e1c75fc51638686",
+        "codeHash": "97f574cf97f0c633d66f843caac2f156ae230da4c219da0220e9e0f7cecf721d",
         "last": {
-          "lt": "96594592000010",
-          "hash": "IQzKoNmpg2ozKC2G4HZkry4w2DUFBDaLExdY7pMCYMY="
+          "lt": "102585819000005",
+          "hash": "z6oTaqIDdHZp0xNbdwedsHDobwupFBHWZo0neZ5EKnA="
         }
       },
       {
         "asset": 1,
         "role": "minter",
-        "address": "0:f482d8e844ac1d5f4a409ab25c343f15ef2081aac3423ba86e49467de656cbb3",
+        "address": "0:53b77589881454e04114c162bf67ed0a7a8f64a5e01383f136da7cefb0cc6dd9",
         "codeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
         "last": {
-          "lt": "96594762000005",
-          "hash": "gpLKCXcde/xxCF33ZFitvZDsW1mIGM8D4KFmQNQ8EoY="
+          "lt": "102585819000004",
+          "hash": "XOE2UQjjS/O523v0Trv7OajFvuRzN+MNovG3OdUYVkA="
         }
       },
       {
         "asset": 1,
         "role": "escrow",
-        "address": "0:8e6a42d5124f24b7709633876943ab107ce28766070b448d0a7e0b9f1c5d65e2",
-        "codeHash": "69a765abd7cd9278a10e39d4fd08c336ed683b5b0ccd6ecfeccb513c57290f00",
+        "address": "0:51a8c3d9cc3445d7492d4277635750099571cac7152d5de9ebdc16ccb70e4287",
+        "codeHash": "97f574cf97f0c633d66f843caac2f156ae230da4c219da0220e9e0f7cecf721d",
         "last": {
-          "lt": "96594906000003",
-          "hash": "Is+G7lHhsREycdnQgsg5tV/WMwsJaksuRxL6LkL2kBI="
+          "lt": "102585819000006",
+          "hash": "pdQdj90rDLjmodIiqTI8i7lfFp4+Sy4Xn6z1Rcu+o08="
         }
       }
     ]

@@ -41,8 +41,8 @@ test('TVM plus compiled Midnight runtime: lock, claim, retire, release and adver
   const claimHash=pureCircuits.claimDigest(domain,Buffer.from(midAddress,'hex'),depositReceipt,0n,1000n,{bytes:Buffer.alloc(32,9)});
   ctx=midnight.impureCircuits.claim(ctx,depositReceipt,0n,1000n,{bytes:Buffer.alloc(32,9)},0n,2n,signClaim(claimHash,midKeys[0]!),signClaim(claimHash,midKeys[2]!)).context;
   assert.equal(ledger(ctx.currentQueryContext.state).circulating[0],await escrow.getNumber('locked'));
-  const receipt=Buffer.alloc(32,7);
-  ctx=midnight.impureCircuits.redeem(ctx,receipt,0n,400n,user.address.hash).context;
+  const receipt=Buffer.from(pureCircuits.redemptionId(Buffer.alloc(32,7)));
+  ctx=midnight.impureCircuits.redeem(ctx,Buffer.alloc(32,7),0n,400n,user.address.hash).context;
   assert(ledger(ctx.currentQueryContext.state).retired.member(receipt));const digest=releaseDigest(escrow.address,domain,receipt,400n,user.address);
   const body=releaseBody(receipt,400n,user.address,0,2,signRelease(digest,keys[0]!.secretKey),signRelease(digest,keys[2]!.secretKey));
   const delivered=await escrow.send(attacker.getSender(),body); // anyone may relay, cannot redirect

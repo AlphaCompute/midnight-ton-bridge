@@ -8,14 +8,14 @@ import {ledger} from '../build/midnight/contract/index.js';
 import {TonClient4} from '@ton/ton';
 import {DatabaseSync} from 'node:sqlite';
 import {network,statePath} from '../src/environment.js';
-import {midnightEndpoints} from '../src/midnight-endpoints.js';
+import {midnightIndexer} from '../src/midnight-endpoints.js';
 import {statePins} from '../src/redemptions.js';
 import {verifyAsset,validateAssets} from '../src/jettons.js';
 if(network()!=='preprod')throw new Error('preprod required');
 const read=(p:string)=>JSON.parse(readFileSync(statePath(p),'utf8')),plan=read('ton-plan.json'),deployment=read('midnight-deployment.json');
 assert.equal(plan.domain,deployment.domain);assert.equal(plan.adapter,'tep74-reference');const assets=validateAssets(plan.assets);
 setNetworkId('preprod');globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
-const endpoints=midnightEndpoints('preprod'),provider=indexerPublicDataProvider(endpoints.indexer,endpoints.indexerWS);
+const endpoints=midnightIndexer('preprod'),provider=indexerPublicDataProvider(endpoints.indexer,endpoints.indexerWS);
 const state=await provider.queryContractState(deployment.address);assert(state);assert.deepEqual(statePins(state),deployment.pins);assert.equal(state.maintenanceAuthority.committee.length,0);assert.equal(state.maintenanceAuthority.threshold,1);
 const data=ledger(state.data),t={client:new TonClient4({endpoint:process.env.TON_RPC_URL??'https://testnet-v4.tonhubapi.com'})},rows=[],issues:string[]=[];
 for(const a of assets){

@@ -25,7 +25,7 @@ const address=DustAddress.encodePublicKey('preprod',BigInt(dustSnapshot.publicKe
 const encodeRoot=(n:bigint|undefined)=>n===undefined?undefined:'73'+Buffer.from(n.toString(16).padStart(64,'0'),'hex').reverse().toString('hex');
 for(let attempt=0;attempt<10;attempt++){
  const {block:b}=await query(blockQuery);
- const [d,z,generations]=await Promise.all([subscribe('subscription{dustLedgerEvents(id:0){id maxId}}',true),subscribe('subscription{zswapLedgerEvents(id:0){id maxId}}',true),subscribe(`subscription{dustGenerations(dustAddress:"${address}",startIndex:0,endIndex:${b.dustGenerationEndIndex-1}){__typename}}`)]);
+ const [d,z,generations]=await Promise.all([subscribe('subscription{dustLedgerEvents(id:0){id maxId}}',true),subscribe('subscription{zswapLedgerEvents(id:0){id maxId}}',true),subscribe(`subscription{dustGenerations(dustAddress:"${address}",blockHash:"${b.hash}",dtimeCutoffHeight:0){__typename}}`)]);
  assert(generations.length>0);assert(generations.every(row=>row.dustGenerations.__typename==='DustGenerationsProgress'),'Wallet has DUST generation history; full recovery required');
  const names=[['zswapMerkleTreeCollapsedUpdate',b.zswapEndIndex],['dustGenerationMerkleTreeUpdate',b.dustGenerationEndIndex],['dustCommitmentMerkleTreeUpdate',b.dustCommitmentEndIndex]] as const;
  const updates=await Promise.all(names.map(async([name,end])=>(await query(`{${name}(startIndex:0,endIndex:${end-1}){update startIndex endIndex}}`))[name]));

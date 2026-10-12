@@ -1,4 +1,4 @@
-import {network,statePath,stateDirectory} from '../src/environment.js';
+import {network,statePath} from '../src/environment.js';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import assert from 'node:assert/strict';
@@ -39,7 +39,7 @@ try{
  const out=quoteSwap(100n,5000n,5000n);
  await record('swap',[0n,100n,out,recipient]);
  await record('removeLiquidity',[secret,5000n,0n,0n,recipient]);
- const redemption=randomBytes(32);await record('redeem',[redemption,0n,100n,Buffer.alloc(32,12)]);
+ const nonce=randomBytes(32),redemption=Buffer.from(pureCircuits.redemptionId(nonce));await record('redeem',[nonce,0n,100n,Buffer.alloc(32,12)]);
  const snapshot=await client.providers.publicDataProvider.queryContractState(deployment.address);if(!snapshot)throw new Error('missing final state');
  const request={id:redemption.toString('hex'),asset:0 as const,amount:'100',recipient:new Address(0,Buffer.alloc(32,12)).toRawString(),transactionId:evidence.at(-1)!.txId};
  verifyRedemption(snapshot,deployment.pins,request,[new Address(0,Buffer.alloc(32,1)).toRawString(),new Address(0,Buffer.alloc(32,2)).toRawString()]);

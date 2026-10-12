@@ -1,4 +1,5 @@
-import {statePath,stateDirectory} from '../src/environment.js';
+import {statePath} from '../src/environment.js';
+import {midnightIndexer} from '../src/midnight-endpoints.js';
 import {readFileSync,writeFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import {Address} from '@ton/core';
@@ -10,7 +11,7 @@ import {verifyRedemption,type MidnightPins} from '../src/redemptions.js';
 const d=JSON.parse(readFileSync(statePath('midnight-deployment.json'),'utf8')) as {network:string;address:string;pins:MidnightPins};
 if(d.network!=='undeployed')throw new Error('isolated local deployment required');
 setNetworkId('undeployed');globalThis.WebSocket=WebSocket as unknown as typeof globalThis.WebSocket;
-const p=indexerPublicDataProvider('http://127.0.0.1:18088/api/v3/graphql','ws://127.0.0.1:18088/api/v3/graphql/ws');
+const local=midnightIndexer('local'),p=indexerPublicDataProvider(local.indexer,local.indexerWS);
 const rows=JSON.parse(readFileSync(statePath('local-proof-evidence.json'),'utf8')) as {circuit:string;txId:string;blockHeight:number;status:string}[];
 assert.deepEqual(rows.map(r=>r.circuit),['claim','claim','addLiquidity','swap','removeLiquidity','redeem']);
 const verified=[];

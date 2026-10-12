@@ -54,3 +54,9 @@ test('a logical TON send may be retried only after every earlier attempt is a pr
  put('release:x#2','sending');assert.throws(()=>nextAttemptId(get,'release:x'),/reconcile/);
  put('release:x#2','rejected');assert.equal(nextAttemptId(get,'release:x'),'release:x#3');
 });
+test('signed TON messages are relayed through toncenter as well as the reading RPC by default',async()=>{
+ const {broadcastUrls}=await import('../src/live-ton.js');
+ assert.deepEqual(broadcastUrls({}),['https://testnet.toncenter.com/api/v2/sendBoc']);
+ assert.deepEqual(broadcastUrls({TON_BROADCAST_URLS:' https://a/sendBoc , https://b/sendBoc '}),['https://a/sendBoc','https://b/sendBoc']);
+ assert.deepEqual(broadcastUrls({TON_BROADCAST_URLS:''}),[]);
+});

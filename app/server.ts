@@ -11,7 +11,7 @@ import {DEPOSIT_ATTACHED_TON,transferBody,uint64} from '../src/ton.js';
 import {quoteSwap} from '../src/midnight.js';
 import {observeTon,type DepositReceipt} from '../src/receipts.js';
 import {assertTonTestnet} from '../src/ton-network.js';
-import {redactProcessOutput} from '../src/midnight-endpoints.js';
+import {midnightIndexer,redactProcessOutput} from '../src/midnight-endpoints.js';
 
 /** Public route description. Holds no keys; safe to serve to browsers. */
 export type RouteAsset=JettonAsset&{escrow:string;codeHash:string;configHash:string};
@@ -54,8 +54,7 @@ export function liveTon(deployment:Deployment,endpoint=process.env.TON_RPC_URL??
  };
 }
 
-/** Reads the bridge ledger from a Midnight indexer. The public preprod indexer was
- * decommissioned on 2026-10-09; set MIDNIGHT_INDEXER_URL to a replacement. */
+/** Reads the bridge ledger from a Midnight indexer. */
 export async function liveMidnight(deployment:Deployment,url:string,ws:string):Promise<MidnightReader>{
  const [{default:WebSocket},{setNetworkId},{indexerPublicDataProvider},{ledger}]=await Promise.all([
   import('ws'),import('@midnight-ntwrk/midnight-js-network-id'),import('@midnight-ntwrk/midnight-js-indexer-public-data-provider'),import('../build/midnight/contract/index.js')]);
@@ -189,8 +188,9 @@ export function createApp(options:{deployment:Deployment;ton:TonReader;midnight?
 
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  const deployment=loadDeployment(process.env.BRIDGE_DEPLOYMENT_FILE??fileURLToPath(new URL('../docs/standard-testnet-deployment.json',import.meta.url)));
- const indexer=process.env.MIDNIGHT_INDEXER_URL;
- const midnight=indexer?await liveMidnight(deployment,indexer,process.env.MIDNIGHT_INDEXER_WS??indexer.replace(/^http/,'ws')+'/ws'):undefined;
+ // Preprod is served by Blockfrost: BLOCKFROST_PROJECT_ID, or an explicit MIDNIGHT_INDEXER_URL.
+ const endpoints=process.env.BLOCKFROST_PROJECT_ID||process.env.MIDNIGHT_INDEXER_URL?midnightIndexer('preprod'):undefined;
+ const midnight=endpoints?await liveMidnight(deployment,endpoints.indexer,endpoints.indexerWS):undefined;
  const port=Number(process.env.PORT??3080),host=process.env.HOST??'127.0.0.1';
- createApp({deployment,ton:liveTon(deployment),midnight,midnightUnavailable:'Midnight indexer not configured (the public preprod indexer was retired on 2026-10-09; set MIDNIGHT_INDEXER_URL)'}).listen(port,host,()=>console.log(`Bridge app: http://${host}:${port}`));
+ createApp({deployment,ton:liveTon(deployment),midnight,midnightUnavailable:'Midnight indexer not configured (set BLOCKFROST_PROJECT_ID or MIDNIGHT_INDEXER_URL)'}).listen(port,host,()=>console.log(`Bridge app: http://${host}:${port}`));
 }

@@ -25,7 +25,7 @@ This tracks the bridge/SDK component against the supplied agreement; it does not
 3. Claim on Midnight; show final transaction status and increased recipient token balance. Attempt replay and wrong-recipient authorization and show rejection.
 4. Bridge both configured tokens on testnet, seed the pool, show reserves/quote, execute a bounded swap and withdraw LP liquidity with the private LP authorization kept off screen.
 5. Retire tokens on Midnight; show the recorded commitment and two independent reverse attestations. Release on TON and inspect recipient jetton delivery, not merely wallet-request submission.
-6. Demonstrate restart/ambiguous-submission reconciliation and explain the exact-sender refunds and authenticated bounce recovery; explain missing-notification limits.
+6. Demonstrate restart/ambiguous-submission reconciliation and explain the exact-sender refunds and authenticated bounce recovery; show an underfunded deposit recovered as a quorum-attested refund (`npm run demo:unrecorded`).
 7. A separate developer installs the SDK and notes scaffold using only delivered documentation. Record machine/tool versions, commands and results.
 8. Deliver source, checksums, evidence, independent review report, Loom link and production recommendations; obtain written acceptance against the agreed bridge deliverables.
 

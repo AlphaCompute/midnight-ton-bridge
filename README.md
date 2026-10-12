@@ -10,7 +10,7 @@ A bidirectional bridge with a two-asset liquidity pool and TypeScript SDK. Lock 
 - **Built-in liquidity:** supply assets, swap with slippage bounds and earn pool fees.
 - **Operator tools:** transaction journals, signer limits, recovery, accounting checks and Prometheus metrics.
 
-The **TON testnet ↔ Midnight preprod** deployment has completed the full deposit, claim, liquidity, swap, withdrawal and redemption flow. See [addresses](docs/standard-testnet-deployment.json), [transaction evidence](docs/standard-testnet-evidence.json) and [accounting](docs/standard-testnet-accounting.json).
+The **TON testnet ↔ Midnight preprod** deployment has completed the full deposit, claim, liquidity, swap, withdrawal and redemption flow. See [addresses](docs/standard-testnet-deployment.json), [transaction evidence](docs/standard-testnet-evidence.json), [accounting](docs/standard-testnet-accounting.json) and a live [stuck-deposit recovery](docs/standard-testnet-recovery-evidence.json).
 
 ## How it works
 
@@ -39,13 +39,15 @@ git clone git@github.com:AlphaCompute/midnight-ton-bridge.git
 cd midnight-ton-bridge
 bash scripts/bootstrap.sh
 npm run check
-npm run compile:midnight -- --proof  # Generate keys for Midnight transactions
+npm run compile:midnight -- --proof  # Proving keys for Midnight transactions (~30 min, several GB of RAM)
 ```
+
+`bootstrap.sh` downloads the checksum-verified Compact compiler into `.tools/`, installs dependencies and compiles both chains' contracts. Proving keys are needed only for live Midnight transactions; `npm run check` builds and runs the full test suite without them.
 
 ### Run locally
 
 ```sh
-docker compose up -d
+docker compose up -d --wait   # local Midnight node, indexer and proof server
 export BRIDGE_NETWORK=local
 export BRIDGE_STATE_DIR="$PWD/.state/local-demo"
 npm run deploy:midnight
@@ -61,11 +63,26 @@ The local demo exercises Midnight proofs and pool operations; the test suite cov
 npm run app   # http://127.0.0.1:3080
 ```
 
-Bridge, track, pool and route views for the published testnet route. Set `MIDNIGHT_INDEXER_URL` for Midnight claim status and pool reserves.
+Bridge, track, pool and route views for the published testnet route. Midnight claim status and pool reserves need `BLOCKFROST_PROJECT_ID` in `.env` (see below).
 
 ### Deploy to testnet
 
-Follow the [deployment guide](docs/deployment.md#deploy-to-public-testnet) to fund wallets, configure token masters, deploy both chains and verify a complete round trip. It covers existing tokens, optional testnet token issuance and production release requirements.
+Public testnet is **TON testnet + Midnight preprod**. Before starting you need:
+
+- **A Blockfrost project for Midnight Preprod.** Midnight's own preprod endpoints closed on 9 October 2026. Create a free project at [blockfrost.io](https://blockfrost.io), then add `BLOCKFROST_PROJECT_ID=nightpreprod…` to `.env`.
+- **Test TON**, about 3 TON, from the official faucet through the [Acton CLI](https://github.com/ton-blockchain/acton/releases) (`npm run fund:ton`).
+- **tNIGHT** from the [Midnight preprod faucet](https://faucet.preprod.midnight.network/), which needs a browser human check.
+
+```sh
+export BRIDGE_NETWORK=preprod
+npm run prepare:testnet             # fresh wallets and a demo committee in .state/preprod
+docker compose up -d --wait proof-server
+npm run wallet:sync -- --initialize-only && npm run bootstrap:wallet -- --new-unused-wallet
+# fund both printed addresses, then:
+npm run wallet:sync                 # registers tNIGHT for DUST fees
+```
+
+Then follow the [deployment guide](docs/deployment.md#deploy-to-public-testnet) to deploy both chains and run `demo:testnet`, `demo:unrecorded`, `verify:testnet` and `check:route`. It also covers existing token masters and production release requirements.
 
 Keep `.state` private and preserve its transaction journals. Reconcile interrupted transfers using the [operator runbook](docs/operations.md) before resubmitting.
 
@@ -92,7 +109,7 @@ const body = bridge.depositMessage(
 | Action | SDK methods |
 | --- | --- |
 | Bridge into Midnight | `depositMessage`, `claimDigest`, `claim` |
-| Bridge back to TON | `redeem` |
+| Bridge back to TON | `redeem` (private random nonce), `redemptionId` |
 | Trade | `quote`, `swap` |
 | Provide liquidity | `addLiquidity`, `removeLiquidity` |
 | Verify token integration | `validateAssets`, `verifyAsset`, `referenceWallet` from the package root |
@@ -107,7 +124,7 @@ TON deposits back the Midnight representations. Liquidity providers supply those
 
 ```sh
 npm run check:route       # Pins, backing, circulation and journal status
-npm run monitor           # Persistent health checks and metrics
+npm run build && npm run monitor   # Persistent health checks and metrics
 npm run reconcile:ton -- all
 ```
 

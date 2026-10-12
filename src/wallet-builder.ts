@@ -14,6 +14,7 @@ export async function buildPersistentWallet(env:EnvironmentConfiguration,seed:st
  const keystore=createKeystore(seeds.unshielded,env.walletNetworkId),shieldedClass=ShieldedWallet(config),unshieldedClass=UnshieldedWallet(config),dustClass=DustWallet({...config,costParameters:{additionalFeeOverhead:0n,feeBlocksMargin:5}});
  const shielded=prior?shieldedClass.restore(prior.shielded):shieldedClass.startWithSeed(seeds.shielded),unshielded=prior?unshieldedClass.restore(prior.unshielded):unshieldedClass.startWithPublicKey(PublicKey.fromKeyStore(keystore)),dust=prior?dustClass.restore(prior.dust):dustClass.startWithSeed(seeds.dust,LedgerParameters.initialParameters().dust);
  const facade=await WalletFacade.init({configuration:config,shielded:()=>shielded,unshielded:()=>unshielded,dust:()=>dust});
+ // The SDK logs the wallet seed through this logger; keep it silent.
  const provider=await MidnightWalletProvider.withWallet(pino({level:'silent'}),env,facade,ZswapSecretKeys.fromSeed(seeds.shielded),DustSecretKey.fromSeed(seeds.dust),keystore);
  let saving:Promise<void>|undefined;
  const save=()=>saving??=(async()=>{const snapshot={identity,network:env.networkId,shielded:await shielded.serializeState(),dust:await dust.serializeState(),unshielded:await unshielded.serializeState()};const tmp=file+'.tmp';writeFileSync(tmp,JSON.stringify(snapshot),{mode:0o600});renameSync(tmp,file);})().finally(()=>{saving=undefined;});

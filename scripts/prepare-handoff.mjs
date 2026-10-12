@@ -7,7 +7,7 @@ const head=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 const starter=join(root,'notes-starter');mkdirSync(starter,{recursive:true});
 for(const name of readdirSync('examples/notes'))if(/\.(mjs|html|md|json)$/.test(name)||name==='env.example')copyFileSync(join('examples/notes',name),join(starter,name));
 for(const name of ['README.md','LICENSE'])copyFileSync(name,join(root,name));
-const docs=['deployment.md','acceptance.md','architecture.md','operations.md','validation.md','standard-recovery.md','standard-testnet-evidence.json','standard-testnet-deployment.json','standard-testnet-assets.json','standard-testnet-accounting.json','benchmarks.json','external-release-inputs.md','monitoring.md','delivery-artifacts.md'];
+const docs=['deployment.md','acceptance.md','architecture.md','operations.md','validation.md','standard-recovery.md','standard-testnet-evidence.json','standard-testnet-deployment.json','standard-testnet-assets.json','standard-testnet-accounting.json','standard-testnet-recovery-evidence.json','benchmarks.json','external-release-inputs.md','monitoring.md','delivery-artifacts.md'];
 mkdirSync(join(root,'docs'),{recursive:true});for(const name of docs)copyFileSync(join('docs',name),join(root,'docs',name));
 execFileSync('git',['archive','--format=tar.gz',`--output=${join(root,'bridge-source.tar.gz')}`,head]);
 const [pack]=JSON.parse(execFileSync('npm',['pack','--json','--pack-destination',root],{encoding:'utf8'}));

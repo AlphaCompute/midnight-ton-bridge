@@ -69,15 +69,23 @@ export circuit claim(receipt: Bytes<32>, asset: Uint<8>, amount: Uint<64>, recip
   mintUnshieldedToken(tokenDomain(disclose(asset)), disclose(amount), right<ContractAddress, UserAddress>(disclose(recipient)));
 }
 
+// A retirement is keyed by a hash of a private nonce. A caller-chosen public ID could be
+// copied from a pending transaction and retired first, making the original fail.
+export circuit redemptionId(nonce: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "alphaton:redemption:v1"), nonce]);
+}
+
 // Retired coins remain permanently locked. No exported circuit can spend them:
 // pool sends are bounded by separately accounted pool reserves.
-export circuit redeem(id: Bytes<32>, asset: Uint<8>, amount: Uint<64>, tonRecipient: Bytes<32>): [] {
+export circuit redeem(nonce: Bytes<32>, asset: Uint<8>, amount: Uint<64>, tonRecipient: Bytes<32>): Bytes<32> {
+  const id = disclose(redemptionId(nonce));
   assert(disclose(asset) < 2 && disclose(amount) > 0, "invalid redemption");
-  assert(!retired.member(disclose(id)), "replayed redemption");
+  assert(!retired.member(id), "replayed redemption");
   assert((disclose(asset) == 0 ? circulating[0] : circulating[1]) >= disclose(amount), "insufficient circulation");
   receiveUnshielded(tokenType(tokenDomain(disclose(asset)), kernel.self()), disclose(amount));
   circulating = disclose(asset) == 0 ? [((disclose(asset) == 0 ? circulating[0] : circulating[1]) - disclose(amount)) as Uint<64>, circulating[1]] : [circulating[0], ((disclose(asset) == 0 ? circulating[0] : circulating[1]) - disclose(amount)) as Uint<64>];
-  retired.insert(disclose(id), persistentHash<[Uint<8>, Uint<64>, Bytes<32>]>([disclose(asset), disclose(amount), disclose(tonRecipient)]));
+  retired.insert(id, persistentHash<[Uint<8>, Uint<64>, Bytes<32>]>([disclose(asset), disclose(amount), disclose(tonRecipient)]));
+  return id;
 }
 
 // Constant-product WHIS/test-USD1 pool, 30 bps fee retained by LPs.

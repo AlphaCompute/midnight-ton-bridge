@@ -1,12 +1,12 @@
 {
   "network": "isolated-local-only",
-  "address": "a0d36bd31e8963dd97bb757c48ba594d4e040fc9935e14458e8b4efeacfd3606",
+  "address": "2043d23f6ed3ffc44482e6715e804ee0fe39f7f6d3c0e27ec49b85c96c86dcc4",
   "pins": {
-    "domain": "e6d749ca209da3c998f98ed5b6c7d829883d5a5bdce571c1fd93a9de35e66617",
+    "domain": "918138188123b2073ab5ac9e5a5b607f83efe78fdcae6e678a1cae23825a424e",
     "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",
     "verifiers": {
       "claim": "06fd3b5df85a5a056bae8ebd8f46b3268efa6988e714556785deab4b1da0ef86",
-      "redeem": "b2adef24cdd597e07893b304f50392f9f022950fbe72dade062a760e76306194",
+      "redeem": "598af0d7ad4a0fc6a3cc8313b55858d026de453826eaafb2155d7595e4eab4d6",
       "addLiquidity": "daed71d2afcd19d6ffd134467605b7571c0381f9e34c4dd8565f53f70e770db8",
       "swap": "16c087e3565666f6bb480a995e3e7a20284f61e732b0abb7edd4ccf34a0194cd",
       "removeLiquidity": "59646edfb8b08f0f8477400d4b24d9719803ba70a748fc823b803f3a6cc34129"
@@ -15,45 +15,45 @@
   "transactions": [
     {
       "circuit": "claim",
-      "txId": "00a0db776f67e3df8ff8fe2e6cd1407deeff79d753b85a7f6baa50c35d8abe9569",
-      "blockHeight": 50,
+      "txId": "0005803129747b3b6323a2192ca679d58529910e44cfc32a77e3827c4e240cca40",
+      "blockHeight": 29,
       "status": "SucceedEntirely",
-      "blockHash": "cf26f8c2afa82c125f4e0420573ef7ad5831a43b51b30d45cc09d075b1898951"
+      "blockHash": "de0423cdc5de113ee25143fbb024db813fa8f0ddbfb91129b29f13fdb275dfb9"
     },
     {
       "circuit": "claim",
-      "txId": "00b94d08d2a36b8adfb41bd0f58fed2f6de1819878ce5576480506bd5aefd74ac6",
-      "blockHeight": 59,
+      "txId": "00be928ca1a1a98cf2972e262cfbb2be570dfb800849a3ea9da42d9bfe9eb30a6a",
+      "blockHeight": 36,
       "status": "SucceedEntirely",
-      "blockHash": "e19380c634f65e5fb689815165dab6d070e48345b7ddf7c9669924b3d39bd70f"
+      "blockHash": "b0fb9896246968b91636a5f1529a12f499fd9fcd1db939029e72b56873907db2"
     },
     {
       "circuit": "addLiquidity",
-      "txId": "00006601604f806d12ebb4d84adb2a7ce5de9822e5f7d9b1cb139f21825e400e8a",
-      "blockHeight": 66,
+      "txId": "00b11f008113926cb0416b21e1357632cdffc29666b7b9ab02b59112e3f217eb4b",
+      "blockHeight": 45,
       "status": "SucceedEntirely",
-      "blockHash": "cef68bb597b82d8976b11010d7fca1061c5995366de404d57c95a7cad2f65083"
+      "blockHash": "9a692af8934883e483a902b6f57d4442767ae0663e7b8e26dee3950c46c46c32"
     },
     {
       "circuit": "swap",
-      "txId": "002079b3f1b80d1694a001a20c5ce61e53c865521ad6e4bb1ba85f42660d172521",
-      "blockHeight": 76,
+      "txId": "00702c4e5040a073b11aa1e85e63400b74d4b119b8ffafb1b8e54d95cc62f9e427",
+      "blockHeight": 50,
       "status": "SucceedEntirely",
-      "blockHash": "32bbec31ff17343fb05a9f67e436872f6724943aeb0c9221c0cb5c4815270ca7"
+      "blockHash": "648e8506b58f075abd2349ea8d878007394ecccdfacb57896205d8f9ccdf94d1"
     },
     {
       "circuit": "removeLiquidity",
-      "txId": "008571c9a3a79d4e4bdd017e8b6822471f7df04217fb12e1904711ded1080d6d61",
-      "blockHeight": 82,
+      "txId": "008ac584d01b1fd4d87bd7fa2968c49706642e4022fcdb664a07a1e6144e63aeeb",
+      "blockHeight": 55,
       "status": "SucceedEntirely",
-      "blockHash": "c8bc8f7d5c6236ebc86677cfa114309f37d2684a792e2a34c0e81d679ce2172d"
+      "blockHash": "a7149379fec637d196c40ba2d78fecf992d7502cf238d2686ee0a66e4abe3d32"
     },
     {
       "circuit": "redeem",
-      "txId": "00fbb11d26c663520dc4e354fc724b1b3c08bc6e7ea43b5ac8018b1a6843ec6124",
-      "blockHeight": 91,
+      "txId": "00562cc816f1602bdad6a2cc43f3c8576a482c4cb88b435599904c9eec7118a290",
+      "blockHeight": 60,
       "status": "SucceedEntirely",
-      "blockHash": "19ce5b64f36634e091de361469f4e3e97e8f16ae72dab6c5f068d58d23f5fff6"
+      "blockHash": "fff20ed888eee7fbe4b5785b74a3ebd5e2a6ee5e2910d16c0959f5894d36dc5e"
     }
   ],
   "final": {

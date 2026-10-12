@@ -1,6 +1,6 @@
 import {assertTonTestnet} from '../src/ton-network.js';
 import {network,readSecret,statePath,stateDirectory} from '../src/environment.js';
-import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
+import {readFileSync,writeFileSync,existsSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {TonClient4,WalletContractV4} from '@ton/ton';
 import {Cell,beginCell,internal,toNano} from '@ton/core';

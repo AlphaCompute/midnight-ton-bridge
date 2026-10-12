@@ -22,7 +22,7 @@ Proof-key generation takes several minutes and substantial memory. All five `.pr
 ## Deploy to local test networks
 
 ```sh
-docker compose up -d
+docker compose up -d --wait
 export BRIDGE_NETWORK=local
 export BRIDGE_STATE_DIR="$PWD/.state/local-demo"
 npm run deploy:midnight
@@ -30,13 +30,13 @@ npm run demo:local
 npm run validate:local
 ```
 
-Compose binds only loopback ports 19944 (node), 18088 (indexer), 16300 (proof server). On older Docker Desktop API negotiations, prepend `DOCKER_API_VERSION=1.44`. Wait for the node/indexer to be ready. Preserve containers if you need their chain history: `docker compose stop`. Recreating the development node may create a fresh chain, invalidating old deployment records.
+Compose binds only loopback ports 19944 (node), 18088 (indexer), 16300 (proof server). On older Docker Desktop API negotiations, prepend `DOCKER_API_VERSION=1.44`. `--wait` returns once the node, indexer and proof server are healthy; deploying earlier can fail against a starting indexer. Preserve containers if you need their chain history: `docker compose stop`. Recreating the development node may create a fresh chain, invalidating old deployment records.
 
 Local claims are deliberately synthetic. TON execution is covered separately by the combined TVM/Compact test. The local seed is public development infrastructure and must never be used on another network.
 
 ## Deploy to public testnet
 
-Public testnet means **TON testnet + Midnight preprod**. Midnight retired its hosted preprod indexer and RPC on 9 October 2026; preprod is now served by [Blockfrost](https://docs.midnight.network/guides/networks-and-environments#blockfrost-the-mainnet-indexer-and-rpc-provider). Create a Blockfrost project for **Midnight Preprod** and set `BLOCKFROST_PROJECT_ID` (it starts with `nightpreprod`) in `.env`; every preprod command derives its node and indexer URLs from it. Signer configurations (`indexer`, `indexerWS`) must use the same Blockfrost URLs with `?project_id=`. Keep the token out of logs and shared files. Start only the proof server when using public Midnight endpoints. Avoid a local `.env` overriding public URLs: the default `.env.example` intentionally leaves endpoint overrides commented out.
+Public testnet means **TON testnet + Midnight preprod**. Midnight retired its hosted preprod indexer and RPC on 9 October 2026; preprod is now served by [Blockfrost](https://docs.midnight.network/guides/networks-and-environments#blockfrost-the-mainnet-indexer-and-rpc-provider). Create a free Blockfrost project for **Midnight Preprod** and add `BLOCKFROST_PROJECT_ID=nightpreprod…` to `.env` (gitignored; `chmod 600 .env`). Every npm command loads `.env` and derives its node and indexer URLs from it; output is redacted so the token never reaches logs. Signer configurations (`indexer`, `indexerWS`) must use the same Blockfrost URLs with `?project_id=`. Keep the token out of logs and shared files. Start only the proof server when using public Midnight endpoints. Avoid a local `.env` overriding public URLs: the default `.env.example` intentionally leaves endpoint overrides commented out.
 
 ```sh
 export BRIDGE_NETWORK=preprod
@@ -47,7 +47,7 @@ npm run compile:midnight -- --proof
 npm run compile:ton
 ```
 
-For a newly generated wallet that has never received shielded assets or generated DUST, an optional fast initialization verifies all three collapsed Merkle roots against a canonical block and checks that there are no DUST generations. Run it only once, immediately after preparation:
+For a newly generated wallet that has never received shielded assets or generated DUST, use the fast initialization. Replaying preprod history instead takes hours, because Blockfrost drops long-running event streams and the wallet must reconnect repeatedly. The fast initialization verifies all three collapsed Merkle roots against a canonical block and checks that there are no DUST generations. Run it only once, immediately after preparation:
 
 ```sh
 npm run wallet:sync -- --initialize-only
@@ -58,12 +58,22 @@ The helper checks local usage history, active locks, on-chain DUST generations a
 
 State is stored in `.state/preprod/`. `prepare:testnet` creates owner-only seed files and a centrally held demonstration committee. This arrangement is for testnet validation; it is not independent custody. Back up this directory securely, never commit or distribute it. Run only one wallet process per state directory.
 
-1. Fund the printed TON address with test TON. With the official [Acton CLI](https://ton-blockchain.github.io/acton/docs/wallets) installed, set `ACTON_BINARY` to its absolute path and run `npm run fund:ton`. The generated mnemonic/config must correspond to that address. A faucet queue acknowledgment is not a balance confirmation.
-2. Fund the Midnight unshielded address using the [preprod faucet](https://faucet.preprod.midnight.network/). The wallet uses the seed in `midnight-test-wallet.json`. Supply your own separately funded seed only through an owner-only `MIDNIGHT_SEED_FILE`. Initial synchronization can take a long time; checkpoints are stored in `wallet-sync.json`. DUST generation must be registered and available before fee-paying calls.
-3. Generate a unique 32-byte route domain and retain it for both deployments:
+1. Fund the printed TON address with about 3 test TON. Install the official [Acton CLI](https://github.com/ton-blockchain/acton/releases) into `.tools/acton` (the default `ACTON_BINARY`), then request an airdrop:
+
+   ```sh
+   base=https://github.com/ton-blockchain/acton/releases/download/v1.2.1
+   file=acton-aarch64-apple-darwin.tar.gz   # pick the asset for your platform
+   mkdir -p .tools/acton && curl -fsSLO "$base/$file" && curl -fsSL "$base/$file.sha256" | shasum -a 256 -c - && tar -xzf "$file" -C .tools/acton && rm "$file"
+   npm run fund:ton
+   ```
+
+   One airdrop gives 2 TON. The faucet refuses a second claim until the wallet has sent its first transaction, so request again after the TON deployment below. A queue acknowledgment is not a balance confirmation.
+2. Fund the Midnight unshielded address using the [preprod faucet](https://faucet.preprod.midnight.network/) (it asks for a browser human check). Then run `npm run wallet:sync`: it synchronizes, registers the tNIGHT for DUST generation and waits until DUST is available. The wallet uses the seed in `midnight-test-wallet.json`. Supply your own separately funded seed only through an owner-only `MIDNIGHT_SEED_FILE`. Initial synchronization can take a long time; checkpoints are stored in `wallet-sync.json`. DUST generation must be registered and available before fee-paying calls.
+3. Generate a unique 32-byte route domain, keep it in the state directory and reuse it for both deployments (source the file again in any new shell):
 
 ```sh
-export BRIDGE_DOMAIN="$(node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))")"
+node -e "process.stdout.write('BRIDGE_DOMAIN='+require('crypto').randomBytes(32).toString('hex')+'\\n')" > .state/preprod/route.env
+set -a; . .state/preprod/route.env; set +a
 export MIDNIGHT_COMMITTEE_FILE="$PWD/.state/preprod/midnight-public-committee.json"
 export TON_COMMITTEE_FILE="$PWD/.state/preprod/ton-public-committee.json"
 npm run deploy:midnight
@@ -91,6 +101,7 @@ The Midnight record contains its address, route domain, verifier hashes and main
 
 ```sh
 npm run demo:testnet  # tokens issued by the explicit testnet setup
+npm run demo:unrecorded   # live underfunded deposit, quorum recovery and refund
 # Existing masters instead: npm run demo:testnet -- --existing-balances
 npm run verify:testnet
 npm run reconcile:ton -- all
@@ -99,7 +110,7 @@ npm run check:route
 
 This command requires a fresh bridge deployment. For existing masters, fund the sender with at least 10,000 base units of each configured token and pass `--existing-balances`; the bridge does not mint underlying assets. With explicit testnet issuance it obtains tokens from those testnet minters. It locks both assets on TON, observes registered receipts, claims on Midnight, adds liquidity, swaps, removes liquidity, retires 100 units and releases those units on TON. It verifies the source/recipient jetton message match and finalized recipient transaction. Evidence is written after each step to `.state/preprod/testnet-evidence.json`; `complete: true` appears only after every assertion passes. The demonstration committee is held on one host and is clearly labeled as such.
 
-**If interrupted, do not delete journals or rerun blindly.** A wallet sequence change or `releaseState == 1` alone is not recipient delivery. Preserve evidence, reconcile the exact transaction, and resume only the unfinished step after determining whether it executed. See [operations](operations.md). A fresh deployment record is not permission to forget funds on an earlier route.
+**If interrupted, do not delete journals or rerun blindly.** A wallet sequence change or `releaseState == 1` alone is not recipient delivery. Run `npm run reconcile:ton -- all` (and `npm run reconcile -- ID` for a pending Midnight call), then `npm run demo:testnet -- --resume`. It skips every step already recorded, never resends a confirmed TON transfer and retries only sends proven expired. It stops if a finalized Midnight call is missing from the evidence. If `deploy:midnight` fails before broadcasting (for example while proving), rerun it with `--resume`. See [operations](operations.md). A fresh deployment record is not permission to forget funds on an earlier route.
 
 ## Configure token masters
 

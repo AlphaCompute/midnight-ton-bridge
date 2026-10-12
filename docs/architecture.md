@@ -30,7 +30,7 @@ The representation uses Midnight unshielded token primitives. Balances, amounts,
 
 ## Retirement and pools
 
-Midnight redemption receives actual tokens, reduces circulating supply and records a commitment to the TON recipient and amount. Retired tokens stay permanently locked in the contract. There is no circuit to recover or spend them. AMM sends are bounded by distinct tracked pool reserves, so retired backing cannot become LP inventory. This is retirement by locking, not a claim that the protocol's total minted supply decreases.
+Midnight redemption receives actual tokens, reduces circulating supply and records a commitment to the TON recipient and amount. `redeem(nonce, asset, amount, tonRecipient)` keys the retirement by `redemptionId(nonce)`, a hash of a private random nonce, so an observer of a pending redemption cannot retire its ID first and make it fail. That ID is the TON release receipt. Retired tokens stay permanently locked in the contract. There is no circuit to recover or spend them. AMM sends are bounded by distinct tracked pool reserves, so retired backing cannot become LP inventory. This is retirement by locking, not a claim that the protocol's total minted supply decreases.
 
 The integrated pool supports WHIS/test-USD1 constant-product swaps, a 30-bps retained fee, LP deposits and withdrawals. LP shares are contract records keyed by a hash of an LP secret, not a transferable LP token. Bootstrap shares equal WHIS units. Minimum output/share checks protect callers; callers must calculate their acceptable limits. Excess paired deposits are donations. Division uses a witness with lower/upper quotient constraints; the witness is not trusted. Intermediate widths are explicitly bounded.
 

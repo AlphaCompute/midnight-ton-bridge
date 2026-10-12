@@ -1,5 +1,5 @@
 import {authorizeSignature,type SigningPolicy} from '../src/signer-policy.js';
-import {readSecret,statePath,stateDirectory} from '../src/environment.js';
+import {readSecret,statePath} from '../src/environment.js';
 import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {TonClient4} from '@ton/ton';

@@ -4,52 +4,52 @@
     "platform": "darwin",
     "architecture": "arm64",
     "cpu": "Apple M4 Max",
-    "node": "v24.15.0"
+    "node": "v24.5.0"
   },
   "rows": [
     {
       "circuit": "claim",
-      "milliseconds": 35596,
-      "transactionId": "00b85869877b43130cbe7d66b2698fd6d600b21e71df45a4d724b25578a1b88402",
-      "blockHeight": 2550827
+      "milliseconds": 35397,
+      "transactionId": "006ea91b6f3fa25ac147206f973eecb9ef793c76f12a9ff03a95b98e3724ca4591",
+      "blockHeight": 2951932
     },
     {
       "circuit": "claim",
-      "milliseconds": 23488,
-      "transactionId": "000b4b5f5677b7fee93c44393832842a749592dc777d24f6b8ed742b4f94bd910d",
-      "blockHeight": 2550835
+      "milliseconds": 50755,
+      "transactionId": "0066f3d33324eb471d349bc9bb21522f6ef158738441d821a513e22c17834bfcd7",
+      "blockHeight": 2952037
     },
     {
       "circuit": "addLiquidity",
-      "milliseconds": 21857,
-      "transactionId": "00d590e16db5be8ef5590b8d8ec080dd122995463f58f7fcee8bc79945066af31f",
-      "blockHeight": 2550842
+      "milliseconds": 30245,
+      "transactionId": "00ee222aef7c32d211ba1cefbffec545243069b28dd625cb291debe61d04e654af",
+      "blockHeight": 2952047
     },
     {
       "circuit": "swap",
-      "milliseconds": 22389,
-      "transactionId": "00a790a1373cdbc54092e4a869355e9f333320d42168c7feb28f6d47ff73d1d50e",
-      "blockHeight": 2550847
+      "milliseconds": 31334,
+      "transactionId": "00d4c6e936cb62176eee609f34ebde860a62d8675e1e08940afe086af0e0fc8b39",
+      "blockHeight": 2952053
     },
     {
       "circuit": "removeLiquidity",
-      "milliseconds": 22374,
-      "transactionId": "004cab2fd2ab191a2609de92f26d11ed69ab362b8df7a6c197784d8648f5650fab",
-      "blockHeight": 2550852
+      "milliseconds": 30848,
+      "transactionId": "00ddfa3269574ed10ec8015d3236e3720bc48071ff3cb05c5343f71040825d15f0",
+      "blockHeight": 2952059
     },
     {
       "circuit": "redeem",
-      "milliseconds": 22007,
-      "transactionId": "0001a7294a94c6a32f4e6f6b80b5866902f8ce3c99d7bb67812e74917c74afab0f",
-      "blockHeight": 2550857
+      "milliseconds": 29405,
+      "transactionId": "0040d681b878d5f33c77de10b8fa9c8471bec60b34a275694d9126b3a4af5c04b2",
+      "blockHeight": 2952069
     }
   ],
   "summary": {
     "samples": 6,
-    "totalMilliseconds": 147711,
-    "medianMilliseconds": 22381.5,
-    "minimumMilliseconds": 21857,
-    "maximumMilliseconds": 35596
+    "totalMilliseconds": 207984,
+    "medianMilliseconds": 31091,
+    "minimumMilliseconds": 29405,
+    "maximumMilliseconds": 50755
   },
   "limits": [
     "No concurrency/load test was performed.",

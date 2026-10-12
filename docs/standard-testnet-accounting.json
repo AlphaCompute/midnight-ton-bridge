@@ -1,20 +1,20 @@
 {
   "network": "TON-testnet/Midnight-preprod",
-  "checkedAt": "2026-09-15T04:18:27.467Z",
-  "midnight": "5feae60c427244f4c84c3c46dd64499075fa552dfed99ce4b913b814ba486513",
+  "checkedAt": "2026-10-12T18:44:55.183Z",
+  "midnight": "e666f576390cd26594639c9e37ba5c8dc84aeb638d739c68c1654c7385e5341b",
   "assets": [
     {
       "asset": 0,
-      "master": "0:056f48bd15f1c95ccbf0f67b972724f218b6315cfe05f7aa4dd6ccbebd0c6f73",
-      "block": 84895351,
+      "master": "0:2ef9f7bb6e196763fc4240a9a12c54edf7936f6e8a2029161b7367bc2a76532c",
+      "block": 90823313,
       "balance": "9900",
       "locked": "9900",
       "circulating": "9900"
     },
     {
       "asset": 1,
-      "master": "0:f482d8e844ac1d5f4a409ab25c343f15ef2081aac3423ba86e49467de656cbb3",
-      "block": 84895351,
+      "master": "0:f362eab5a3a212a5b9bd0576a92d9c5652aa2a314d1f624fb364d504e0835f2d",
+      "block": 90823328,
       "balance": "10000",
       "locked": "10000",
       "circulating": "10000"

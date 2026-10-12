@@ -31,20 +31,22 @@ Reproduce with the [local deployment commands](deployment.md#deploy-to-local-tes
 
 > **Source versus deployed code.** The contract sources were simplified after this route
 > was deployed. That changes the TON escrow code hash and the Midnight verifier keys, so
-> the current source no longer reproduces the deployed bytecode. The deployed route
-> reproduces from tagged commits: the TON escrow from `deployed-testnet-ton`, and the
-> Midnight contract (whose `redeem` verifier is pinned in the deployment record) from
-> `deployed-testnet-midnight`. `verify:ton`, `check:route` and the signers' verifier pins
-> must be run from those commits against this route. A new route deployed from current
-> source gets new pins.
+> the current source no longer reproduces the deployed bytecode. The git tag
+> `deployed-testnet` marks the source that does: it reproduces escrow code `97f574cf…` and
+> all five Midnight verifier pins. Run `verify:ton`, `check:route` and signers for this
+> route from that tag. A route deployed from current source gets new pins.
 
-The reference-wallet route completed the full two-chain round trip and was independently re-read:
+The current route (domain `784780e3…`, Midnight `e666f576…`) runs escrow code `97f574cf…`, with the unrecorded-credit recovery operation, and the Midnight contract with private redemption nonces. It completed the full two-chain round trip and was independently re-read:
 
 - [`testnet-deployment.json`](evidence/testnet-deployment.json): route domain, Midnight address, verifier/authority pins, TON masters, escrows and code/configuration hashes, and the custody label.
 - [`testnet-transactions.json`](evidence/testnet-transactions.json): every step of the demonstration, including all six finalized Midnight calls, the two observed TON deposits, the source/recipient message-hash match for the release and final recipient delivery. TON wallet sends were reconciled by exact external-message body hash. `independentReadback` records the re-read pins, immutability, all six calls finalized and collateral matching circulation; `final` records circulation and pool reserves/shares.
 - [`testnet-accounting.json`](evidence/testnet-accounting.json): a `check:route` snapshot of backing, `locked` and circulation per asset. Equality is necessary but is not proof of every transfer or an audit.
 - [`testnet-recovery.json`](evidence/testnet-recovery.json): a live [unrecorded credit](operations.md#unrecorded-credits-opcode-0x42524705) produced by `npm run demo:unrecorded`. An underfunded deposit credited the escrow wallet without a record, two committee attestations turned that exact credit into a refund, and the refund's recipient delivery was verified by message hash with `locked` and the escrow balance equal afterwards.
 - [`testnet-assets.json`](evidence/testnet-assets.json): the route's asset registry, usable as a sample `BRIDGE_ASSETS_FILE`. These are valueless testnet tokens, not WHIS or USD1.
+
+**Resilience exercised live.** One TON RPC stopped relaying sends, and two signed messages expired without being included. `reconcile:ton` proved them dead from the unconsumed wallet sequence. `demo:testnet -- --resume` then continued without repeating any executed step, and the resend was relayed through a second endpoint (`TON_BROADCAST_URLS`).
+
+Routes deployed earlier on the reference adapter are preserved in their state archives and are not used for new deposits. These are escrow code `69a765…`, and a first route with the current escrow code but the previous redemption circuit.
 
 The existing-master planning path was separately run against the public masters, without issuance or broadcast. The monitor was run against the deployed route: `/healthz` returned healthy and Prometheus reported zero consecutive failures; graceful stop and restart retained durable state. Funding came from test faucets. The demonstration committee is held on one host, as recorded in the evidence; it is not independent custody.
 

@@ -8,6 +8,7 @@ import {openMidnight} from '../src/live-midnight.js';
 import {signClaim,type CircuitName} from '../src/midnight.js';
 import {verifyRedemption,type MidnightPins} from '../src/redemptions.js';
 import {ledger,pureCircuits} from '../build/midnight/contract/index.js';
+import {stateSecret} from './lib/util.js';
 import {LOCAL_ESCROWS,LOCAL_TON_RECIPIENT,assertRoundTripLedger,poolAndRedeem} from './lib/round-trip.js';
 if(network()!=='local')throw new Error('Synthetic claim demonstration is restricted to the isolated local chain');
 const deployment=readState<{address:string;domain:string;network:string;pins:MidnightPins}>('midnight-deployment.json');
@@ -30,7 +31,7 @@ try{
   const id=randomBytes(32),digest=pureCircuits.claimDigest(Buffer.from(deployment.domain,'hex'),Buffer.from(deployment.address,'hex'),id,asset,10000n,recipient);
   await record('claim',[id,asset,10000n,recipient,0n,2n,signClaim(digest,keys[0]!),signClaim(digest,keys[2]!)]);
  }
- const {id}=await poolAndRedeem(record,recipient,LOCAL_TON_RECIPIENT.hash,statePath('demo-lp-secret.json'));
+ const {id}=await poolAndRedeem(record,recipient,LOCAL_TON_RECIPIENT.hash,{lp:stateSecret('demo-lp-secret.json'),nonce:stateSecret('demo-redemption-nonce.json')});
  const snapshot=await state();
  const request={id:id.toString('hex'),asset:0 as const,amount:'100',recipient:LOCAL_TON_RECIPIENT.toRawString(),transactionId:evidence.at(-1)!.txId};
  verifyRedemption(snapshot,deployment.pins,request,LOCAL_ESCROWS);

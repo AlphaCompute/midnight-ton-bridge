@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {existsSync,mkdirSync,rmSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {openTon} from '../src/live-ton.js';
+import {broadcastUrls,openTon} from '../src/live-ton.js';
 import {withEnv,withTempDir} from './helpers/env.js';
 
 test('TON sender takes the wallet lock before its journal and releases it when journal initialization fails',async()=>withTempDir(dir=>
@@ -21,3 +21,8 @@ test('TON sender takes the wallet lock before its journal and releases it when j
   assert.equal(existsSync(lock),false);
   await assert.rejects(()=>ton.send('must-fail-before-network',[]),/unable to open database/,'a released lock does not wedge later sends');
  })));
+test('signed TON messages are relayed through toncenter as well as the reading RPC by default',()=>{
+ assert.deepEqual(broadcastUrls({}),['https://testnet.toncenter.com/api/v2/sendBoc']);
+ assert.deepEqual(broadcastUrls({TON_BROADCAST_URLS:' https://a/sendBoc , https://b/sendBoc '}),['https://a/sendBoc','https://b/sendBoc']);
+ assert.deepEqual(broadcastUrls({TON_BROADCAST_URLS:''}),[]);
+});

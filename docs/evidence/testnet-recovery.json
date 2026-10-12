@@ -1,24 +1,24 @@
 {
   "network": "TON-testnet",
-  "escrow": "0:8fb2e8906947cf5f8603be3880759f3a370bd16087e5b2064e1c75fc51638686",
+  "escrow": "0:a56d03b90f55fb662f1fd3b4a9e673f3b7dc07773392f19b61e46d30f94c68da",
   "amount": "50",
   "steps": [
     {
-      "id": "demo-unrecorded-deposit:ffca97198ce4659e1fa24796ece6a4ecfa8454e681a4419ee6fd4cae38968fab",
-      "seqno": 6,
-      "bodyHash": "82d5b7135a3e622bb4bcebc8566d7a6df05b22242fe635b57eb617fd0a971aec",
+      "id": "demo-unrecorded-deposit:784780e36d03360d4d7e800bbcc26079c611f6ddc7722ff586aa463e2b9cd346",
+      "seqno": 15,
+      "bodyHash": "e45c312605aa4fadbe91349e9534e623148799c82137888fa8b08449db5a37f1",
       "status": "wallet-sequence-advanced; verify destination trace"
     },
     {
-      "id": "demo-unrecorded-attest:0d52c58bb13d917c3294da4d796707dbbb406adab56ce81432ebd9ee01e04826",
-      "seqno": 7,
-      "bodyHash": "28e2dd88259a5ec206c0e564c592dd98969fa1c6fa38eecd66490e1eb42469bc",
+      "id": "demo-unrecorded-attest:f1a1439e90fb4e4926ede1e30cd1d41a7f9a08cec24c807650ef6e858eae7757",
+      "seqno": 16,
+      "bodyHash": "871251f32a2e22031d7f0a1fa9c362c78d94c455f3208f5d6ef9ed7606b7c3bb",
       "status": "wallet-sequence-advanced; verify destination trace"
     },
     {
       "id": "demo-unrecorded-refund:0",
-      "seqno": 8,
-      "bodyHash": "5f9d7e9795d355f8e1749ec4a043f3432d93eb4cf42708307a740d6e7f45d016",
+      "seqno": 17,
+      "bodyHash": "c8bdd86938d948ace35f17ea1a0416b92bbddee8cbe53066deb49b033c9f6146",
       "status": "wallet-sequence-advanced; verify destination trace"
     }
   ],
@@ -28,19 +28,19 @@
     "balance": "9900"
   },
   "stranded": {
-    "creditTx": "0d52c58bb13d917c3294da4d796707dbbb406adab56ce81432ebd9ee01e04826",
-    "escrowTx": "0218265e06af6758f7e2858b02879285bb0387d364e39e5577510f721fcf9277",
+    "creditTx": "f1a1439e90fb4e4926ede1e30cd1d41a7f9a08cec24c807650ef6e858eae7757",
+    "escrowTx": "915a8d66aa756f0f9e8389177f68c9a6251b36d0c5319b84a96508e930b82b9a",
     "compute": "skipped"
   },
   "delivery": {
-    "block": 90815913,
+    "block": 90822439,
     "queryId": "1",
     "amount": "50",
-    "from": "0:13844da95c0b2fb093d8d0ce803eb9ac6905d442081d1c83f49221c29939ddf1",
-    "to": "0:9042a425205b9ee2299efdaac134ca46c1d209ae2bb770dc9374db82f613e886",
-    "sourceTx": "7ca82dbdfd0d605078e5305d7a02fee13bfd211d856bde2ffa99765dc1588fad",
-    "recipientTx": "17809c0b83690c9fed09c5efb5c534d469654d127f408335ae702a16d1f872d2",
-    "messageHash": "4ac0ea1614e116ebe36fa85c8816e6c9193bd1fde24013185d75d45c72e2ae7c"
+    "from": "0:296af03bce21fbfef0d7c8052e7d8d0b144ee232909ca40b46b93082063717fc",
+    "to": "0:662a6542a9ed1147dbfb5661a4806fc229390c8f8fb91df4bcb315dbf1763709",
+    "sourceTx": "9c764181489766922d5ec9eba088f7667ed6de32dca4b663d21b23f0c48f35f4",
+    "recipientTx": "95459bc89eb319c9547fce160d9f0884ecef62845ab939380259feddf23f983a",
+    "messageHash": "bee2a11ba92f67f81ebe8420bcd06fd3037057132e384eaa3474cd884c439dbd"
   },
   "after": {
     "locked": "9900",

@@ -1,6 +1,4 @@
 import assert from 'node:assert/strict';
-import {randomBytes} from 'node:crypto';
-import {writeFileSync} from 'node:fs';
 import {persistentHash,CompactTypeBytes} from '@midnight-ntwrk/compact-runtime';
 import type {indexerPublicDataProvider} from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import {ledger,pureCircuits} from '../../build/midnight/contract/index.js';
@@ -11,16 +9,14 @@ import {quoteSwap,type CircuitName} from '../../src/midnight.js';
 export const ROUND_TRIP_CIRCUITS:CircuitName[]=['claim','claim','addLiquidity','swap','removeLiquidity','redeem'];
 type Recipient={bytes:Uint8Array};
 /** Pool and redemption leg after two 10,000-unit claims: add 5,000/5,000, swap 100,
- * withdraw everything, then retire 100 units of asset 0 for `redeemTo`. The LP secret
- * is persisted owner-only before submission and never enters public evidence. */
-export async function poolAndRedeem<R>(record:(circuit:CircuitName,args:unknown[])=>Promise<R>,recipient:Recipient,redeemTo:Uint8Array,lpSecretFile:string){
- const secret=randomBytes(32),owner=persistentHash(new CompactTypeBytes(32),secret);
- writeFileSync(lpSecretFile,JSON.stringify({secret:secret.toString('hex')}),{mode:0o600,flag:'wx'});
- await record('addLiquidity',[owner,5000n,5000n,5000n]);
+ * withdraw everything, then retire 100 units of asset 0 for `redeemTo`. The LP secret and
+ * redemption nonce must already be persisted owner-only (see `stateSecret`), so an
+ * interrupted run can resume with the same values; neither enters public evidence. */
+export async function poolAndRedeem<R>(record:(circuit:CircuitName,args:unknown[])=>Promise<R>,recipient:Recipient,redeemTo:Uint8Array,secrets:{lp:Buffer;nonce:Buffer}){
+ await record('addLiquidity',[persistentHash(new CompactTypeBytes(32),secrets.lp),5000n,5000n,5000n]);
  await record('swap',[0n,100n,quoteSwap(100n,5000n,5000n),recipient]);
- await record('removeLiquidity',[secret,5000n,0n,0n,recipient]);
- const nonce=randomBytes(32),id=Buffer.from(pureCircuits.redemptionId(nonce));
- return {id,retirement:await record('redeem',[nonce,0n,100n,redeemTo])};
+ await record('removeLiquidity',[secrets.lp,5000n,0n,0n,recipient]);
+ return {id:Buffer.from(pureCircuits.redemptionId(secrets.nonce)),retirement:await record('redeem',[secrets.nonce,0n,100n,redeemTo])};
 }
 /** Final ledger after a complete round trip: empty pool, 9,900/10,000 circulating, one retirement. */
 export function assertRoundTripLedger(data:ReturnType<typeof ledger>){

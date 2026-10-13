@@ -19,6 +19,7 @@ import {TON_FINALITY_DEPTH} from '../src/ton-network.js';
 import {ledger,pureCircuits} from '../build/midnight/contract/index.js';
 import {assertRoundTripLedger,poolAndRedeem} from './lib/round-trip.js';
 import {flag,stateSecret,waitFor} from './lib/util.js';
+import {evidenceSteps} from './lib/steps.js';
 if(network()!=='preprod')throw new Error('Public testnets only');
 const d=readState<{address:string;domain:string;pins:MidnightPins;network:string}>('midnight-deployment.json');
 const plan=readState<{network:string;adapter:string;domain:string;testnetIssuance:boolean;assets:(JettonAsset&EscrowPins)[]}>('ton-plan.json');
@@ -30,28 +31,12 @@ const ops=readSecret<{midnight:string;tonSeed:string}[]>(statePath('demo-operato
 const evidence:any=resume?readJson(evidencePath):{network:'TON-testnet/Midnight-preprod',custody:'single developer host; synthetic assets only',midnight:d.address,ton:plan.assets,steps:[]};
 if(evidence.complete)throw new Error('Demonstration already complete');
 const save=()=>writeFileSync(evidencePath,toJson(evidence));
-// A step is done once its evidence is saved. On --resume, finished steps are skipped and
-// their recorded results reused; nothing that already executed is sent again.
-const keyOf=(step:any,seen:Map<string,number>)=>{
- if(step.circuit){const n=seen.get(step.circuit)??0;seen.set(step.circuit,n+1);return `${step.circuit}:${n}`;}
- if(step.deposit)return `receipt:${step.deposit.asset}`;
- return String(step.id).replace(/#\d+$/,'');
-};
-const done=()=>{const seen=new Map<string,number>(),out=new Map<string,any>();for(const step of evidence.steps)out.set(keyOf(step,seen),step);return out;};
-const once=async(key:string,fn:()=>Promise<any>)=>done().get(key)??fn();
 const m=await openMidnight(),t=openTon(),tonJournal=new Journal(statePath('ton-transactions.sqlite'));
 const recipient={bytes:Buffer.from(addressFromKey(m.wallet.unshieldedKeystore.getPublicKey()),'hex')};
 const walletOf=(owner:Address,a:JettonAsset)=>referenceWallet(owner,Address.parse(a.master),Cell.fromBase64(a.walletCodeBoc)).address;
-/** Sends once per logical ID. A confirmed earlier attempt counts as done; only a proven
- * rejection may be retried, and anything unresolved must be reconciled first. */
-const tonOnce=async(id:string,messages:Parameters<typeof t.send>[1])=>{
- const prior=done().get(id);if(prior)return prior;
- const attempts=tonJournal.list().filter(r=>r.id===id||r.id.startsWith(`${id}#`));
- if(attempts.some(r=>r.stage!=='confirmed'&&r.stage!=='rejected'))throw new Error(`Send ${id} is unresolved; run reconcile:ton first`);
- const confirmed=attempts.find(r=>r.stage==='confirmed');
- const step=confirmed?{id:confirmed.id,reconciled:'wallet execution confirmed by reconcile:ton'}:await t.send(id,messages);
- evidence.steps.push(step);save();return step;
-};
+const {done,tonOnce}=evidenceSteps(evidence,save,tonJournal,(id,messages)=>t.send(id,messages));
+// Steps that record their own evidence (receipts, Midnight calls) are skipped once present.
+const once=async(key:string,fn:()=>Promise<any>)=>done().get(key)??fn();
 // Every Midnight call is journaled before broadcast. A finalized call missing from the
 // evidence (a crash after finality) must be inspected, never repeated.
 const applied=()=>m.journal.list().filter(r=>r.payload!=='DUST registration'&&r.stage==='confirmed').length;
@@ -89,8 +74,16 @@ try{
  const digest=verifyRedemption(snapshot,d.pins,request,[plan.assets[0]!.escrow,plan.assets[1]!.escrow]);
  const sign=(i:number)=>signTonDigest(digest,keyPairFromSeed(Buffer.from(ops[i]!.tonSeed,'hex')).secretKey);
  const a0=plan.assets[0]!,escrow=Address.parse(a0.escrow);
- await tonOnce(`demo-release:${id.toString('hex')}`,[internal({to:escrow,value:toNano('0.2'),body:releaseBody(id,100n,t.wallet.address,0,2,sign(0),sign(2))})]);
- evidence.delivery=await waitFor(()=>verifyJettonDelivery(t.client,walletOf(escrow,a0),walletOf(t.wallet.address,a0),0n,100n));
+ const releaseId=`demo-release:${id.toString('hex')}`;
+ // The escrow numbers its outgoing transfers; record this release's query before sending,
+ // since earlier refunds on the route may already have used query 0.
+ if(evidence.releaseQuery===undefined){
+  if(done().get(releaseId))throw new Error('Release was sent before its query was recorded; find its query in the escrow trace');
+  const h=await t.client.getLastBlock(),r=await t.client.runMethod(h.last.seqno-TON_FINALITY_DEPTH,escrow,'nextRelease');
+  if(r.exitCode!==0)throw new Error('nextRelease unavailable');evidence.releaseQuery=r.reader.readBigNumber().toString();save();
+ }
+ await tonOnce(releaseId,[internal({to:escrow,value:toNano('0.2'),body:releaseBody(id,100n,t.wallet.address,0,2,sign(0),sign(2))})]);
+ evidence.delivery=await waitFor(()=>verifyJettonDelivery(t.client,walletOf(escrow,a0),walletOf(t.wallet.address,a0),BigInt(evidence.releaseQuery),100n));
  const h=await t.client.getLastBlock(),locked=await t.client.runMethod(h.last.seqno-TON_FINALITY_DEPTH,escrow,'locked');assert.equal(locked.reader.readBigNumber(),9900n);
  const final=ledger(snapshot.data);assertRoundTripLedger(final);
  evidence.complete=true;evidence.final={circulating:final.circulating,reserve:final.reserve,shares:final.totalShares};save();console.log('Two-chain bridge testnet round trip verified. Evidence:',evidencePath);

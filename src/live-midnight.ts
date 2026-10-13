@@ -23,8 +23,10 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
  if(network!=='local'&&network!=='preprod')throw new Error('test networks only');
  const local=network==='local',networkId=midnightNetworkId(network);
  const env:EnvironmentConfiguration={walletNetworkId:networkId,networkId,...midnightEndpoints(network),faucet:undefined};
- const seed=process.env.MIDNIGHT_SEED??(local?'0'.repeat(63)+'1':readSecret<{seed:string}>(process.env.MIDNIGHT_SEED_FILE??statePath('midnight-test-wallet.json')).seed);
- if(!seed||!/^[a-f0-9]{64}$/i.test(seed))throw new Error('MIDNIGHT_SEED must be 32-byte hex');
+ // Public-network seeds come only from an owner-only file; a raw MIDNIGHT_SEED is a local convenience.
+ if(!local&&process.env.MIDNIGHT_SEED)throw new Error('MIDNIGHT_SEED is local-only; use an owner-only MIDNIGHT_SEED_FILE');
+ const seed=local?process.env.MIDNIGHT_SEED??'0'.repeat(63)+'1':readSecret<{seed:string}>(process.env.MIDNIGHT_SEED_FILE??statePath('midnight-test-wallet.json')).seed;
+ if(!seed||!/^[a-f0-9]{64}$/i.test(seed))throw new Error('Midnight wallet seed must be 32-byte hex');
  setNetworkId(networkId);installWebSocket();
  // Released on any exit, including SDK crashes from unhandled socket errors; journals,
  // not this lock, guard against duplicate transactions.

@@ -24,12 +24,12 @@ function tonQuorum<T extends TonAttestation>(entries:T[],committee:string[],dige
  return {a,b,sigA:Buffer.from(a.signature,'hex'),sigB:Buffer.from(b.signature,'hex')};
 }
 /** Prints the prepared escrow message, or with --send submits it from the journaled wallet. */
-async function relayToEscrow(escrow:Address,body:Cell,id:string,walletKeyFile?:string){
+async function relayToEscrow(escrow:Address,body:Cell,id:string,walletKeyFile?:string,options:{afterConfirmed?:boolean}={}){
  if(!send){console.log(JSON.stringify({network:'ton-testnet',to:escrow.toRawString(),value:toNano('0.2').toString(),body:body.toBoc().toString('base64')}));return;}
  if(network()!=='preprod')throw new Error('live TON relays require BRIDGE_NETWORK=preprod');
  // Wallet providers open state; only --send needs them.
  const {openTon}=await import('../src/live-ton.js');
- console.log(await openTon(walletKeyFile).send(id,[internal({to:escrow,value:toNano('0.2'),body})]));
+ console.log(await openTon(walletKeyFile).send(id,[internal({to:escrow,value:toNano('0.2'),body})],options));
  console.log('Submitted; reconcile the full jetton trace before asserting delivery.');
 }
 if(command==='claim'){
@@ -38,11 +38,12 @@ if(command==='claim'){
  const canonical=(r:DepositReceipt)=>JSON.stringify([r.id,r.network,Address.parse(r.escrow).toRawString(),r.sequence,r.asset,r.amount,r.recipient]);
  if(canonical(entries[0]!.receipt)!==canonical(entries[1]!.receipt))throw new Error('observers did not agree on the same transfer');
  for(const {attestation:a} of entries){a.signature.response=BigInt(a.signature.response);a.signature.announcement={x:BigInt(a.signature.announcement.x),y:BigInt(a.signature.announcement.y)};}
- if(network()!==config.network)throw new Error('provider network differs from bridge config');
  if(!send){
   const bridge=new BridgeClient(config,{call:async(circuit,args)=>toJson({network:config.network,address:config.midnightAddress,circuit,args},0)});
   console.log(await bridge.claim(entries[0]!.receipt,entries.map(x=>x.attestation)));
  }else{
+  // Only submission opens a wallet, so only it must match the configured network.
+  if(network()!==config.network)throw new Error('provider network differs from bridge config');
   const {openMidnight}=await import('../src/live-midnight.js'),client=await openMidnight();
   try{const bridge=new BridgeClient(config,{call:async(c,args)=>{const r=await client.call(config.midnightAddress,c,args);return r.public.txId;}});console.log(await bridge.claim(entries[0]!.receipt,entries.map(x=>x.attestation)));}finally{await client.close();}
  }
@@ -52,9 +53,20 @@ if(command==='claim'){
  const entries=[readJson(aPath),readJson(bPath)] as (TonAttestation&{request:RedemptionRequest})[];
  if(JSON.stringify(entries[0]!.request)!==JSON.stringify(entries[1]!.request))throw new Error('observers disagree');
  const r=entries[0]!.request;if(r.asset!==0&&r.asset!==1)throw new Error('invalid asset');
+ if(!/^[0-9a-f]{64}$/i.test(r.id))throw new Error('invalid redemption id');
  const escrow=Address.parse(config.escrows[r.asset]),recipient=Address.parse(r.recipient),amount=BigInt(r.amount),id=Buffer.from(r.id,'hex');
  const q=tonQuorum(entries,config.committee,releaseDigest(escrow,Buffer.from(config.domain,'hex'),id,amount,recipient));
- await relayToEscrow(escrow,releaseBody(id,amount,recipient,q.a.signer,q.b.signer,q.sigA,q.sigB),`release:${escrow.toRawString()}:${r.id}`,config.walletKeyFile);
+ // The escrow marks a release active when it accepts it and clears the mark only on a
+ // restore. While inactive, resending the same signed release is safe (the escrow's replay
+ // guard still admits it once), including after an earlier confirmed send it restored.
+ let afterConfirmed=false;
+ if(send){
+  const client=tonClient(),{block}=await finalizedBlock(client),state=await client.runMethod(block,escrow,'releaseState',[{type:'int',value:BigInt('0x'+r.id)}]);
+  if(state.exitCode!==0)throw new Error('releaseState unavailable');
+  if(state.reader.readNumber()!==0)throw new Error('Release is already active on chain; verify recipient delivery instead of resending');
+  afterConfirmed=true;
+ }
+ await relayToEscrow(escrow,releaseBody(id,amount,recipient,q.a.signer,q.b.signer,q.sigA,q.sigB),`release:${escrow.toRawString()}:${r.id.toLowerCase()}`,config.walletKeyFile,{afterConfirmed});
 }else if(command==='recovery'){
  // Restores a downstream-failed transfer or refunds an unrecorded credit (operator attest-recovery output).
  const c=readJson<EscrowPins&{domain:string;committee:string[];walletKeyFile?:string}>(path);

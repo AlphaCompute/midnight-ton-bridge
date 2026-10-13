@@ -1,12 +1,12 @@
 {
   "network": "TON-testnet/Midnight-preprod",
-  "domain": "784780e36d03360d4d7e800bbcc26079c611f6ddc7722ff586aa463e2b9cd346",
-  "midnight": "e666f576390cd26594639c9e37ba5c8dc84aeb638d739c68c1654c7385e5341b",
+  "domain": "187f95791af4f34914a08e3300ab99a72a3663b10dc834fb5b0f52063119580c",
+  "midnight": "cbe61af794174a3ca7c2f5641f0481b2e40b0b0d8db66c874776fd0f6f92f51d",
   "pins": {
-    "domain": "784780e36d03360d4d7e800bbcc26079c611f6ddc7722ff586aa463e2b9cd346",
+    "domain": "187f95791af4f34914a08e3300ab99a72a3663b10dc834fb5b0f52063119580c",
     "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",
     "verifiers": {
-      "claim": "06fd3b5df85a5a056bae8ebd8f46b3268efa6988e714556785deab4b1da0ef86",
+      "claim": "1daa0a2eecdbbce0fbd3eaff08fca3e13c54fd8bbe5bb40a3d4470397a609abd",
       "redeem": "598af0d7ad4a0fc6a3cc8313b55858d026de453826eaafb2155d7595e4eab4d6",
       "addLiquidity": "daed71d2afcd19d6ffd134467605b7571c0381f9e34c4dd8565f53f70e770db8",
       "swap": "16c087e3565666f6bb480a995e3e7a20284f61e732b0abb7edd4ccf34a0194cd",
@@ -18,79 +18,79 @@
       "asset": 0,
       "symbol": "BRIDGE-0",
       "decimals": 6,
-      "master": "0:2ef9f7bb6e196763fc4240a9a12c54edf7936f6e8a2029161b7367bc2a76532c",
+      "master": "0:3307d25e9e6950e51ad6e0ca5935ec7fff4a5562e9e4811ac585bd0ebde23d57",
       "masterCodeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
       "walletCodeBoc": "te6cckECEgEAAzQAART/APSkE/S88sgLAQIBYgIRAgLMAwYCAdQEBQDDCDHAJJfBOAB0NMDAXGwlRNfA/AL4PpA+kAx+gAxcdch+gAx+gAwc6m0AALTH4IQD4p+pVIgupUxNFnwCOCCEBeNRRlSILqWMUREA/AJ4DWCEFlfB7y6k1nwCuBfBIQP8vCAAET6RDBwuvLhTYAIBSAcOAgEgCAoB8QD0z/6APpAIfAB7UTQ+gD6QPpA1DBRNqFSKscF8uLBKML/8uLCVDRCcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMkg+QBwdMjLAsoHy//J0AT6QPQEMfoAINdJwgDy4sR3gBjIywVQCM8WcPoCF8trE8yAJAK6CEBeNRRnIyx8Zyz9QB/oCIs8WUAbPFiX6AlADzxbJUAXMI5FykXHiUAioE6CCCOThwKoAggiYloCgoBS88uLFBMmAQPsAECPIUAT6AljPFgHPFszJ7VQD9ztRND6APpA+kDUMAjTP/oAUVGgBfpA+kBTW8cFVHNtcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMn5AHB0yMsCygfL/8nQUA3HBRyx8uLDCvoAUaihggiYloCCCJiWgBK2CKGCCOThwKAYoSfjDyXXCwHDACOALDA0AcFJ5oBihghBzYtCcyMsfUjDLP1j6AlAHzxZQB88WyXGAEMjLBSTPFlAG+gIVy2oUzMlx+wAQJBAjAA4QSRA4N18EAHbCALCOIYIQ1TJ223CAEMjLBVAIzxZQBPoCFstqEssfEss/yXL7AJM1bCHiA8hQBPoCWM8WAc8WzMntVAIBIA8QANs7UTQ+gD6QPpA1DAH0z/6APpAMFFRoVJJxwXy4sEnwv/y4sKCCOThwKoAFqAWvPLiw4IQe92X3sjLHxXLP1AD+gIizxYBzxbJcYAYyMsFJM8WcPoCy2rMyYBA+wBAE8hQBPoCWM8WAc8WzMntVIACDIAg1yHtRND6APpA+kDUMATTH4IQF41FGVIguoIQe92X3hO6ErHy4sXTPzH6ADAToFAjyFAE+gJYzxYBzxbMye1UgABug9gXaiaH0AfSB9IGoYfCn2Es=",
       "walletCodeHash": "a760d629d5343e76d045017d9dc216fc8a307a8377815feb2b0a5c490e733486",
       "cap": "1000000000000",
       "adapter": "tep74-reference",
-      "escrow": "0:a56d03b90f55fb662f1fd3b4a9e673f3b7dc07773392f19b61e46d30f94c68da",
-      "codeHash": "97f574cf97f0c633d66f843caac2f156ae230da4c219da0220e9e0f7cecf721d",
-      "configHash": "97b5879068fc4b8c2b48af0d208e6bcad44fbe9a824e833945ceab43dc046851"
+      "escrow": "0:fb6b8da90ed7349a8175752ee5dd4673100dbe8a601901ed68526fb91a89472d",
+      "codeHash": "b04e0069d7f19de60359a38d39b3ea010dee24a9fb232df3c392bf4cb602ed35",
+      "configHash": "566472a3ab9cb7f378a2618ccdd10756c4195969ad1292d707fe7f1446c138af"
     },
     {
       "asset": 1,
       "symbol": "BRIDGE-1",
       "decimals": 6,
-      "master": "0:f362eab5a3a212a5b9bd0576a92d9c5652aa2a314d1f624fb364d504e0835f2d",
+      "master": "0:17077a7c87f0459fbabe62bbcdbbe3a14149f8c695a72f9d44c5d7420fb33269",
       "masterCodeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
       "walletCodeBoc": "te6cckECEgEAAzQAART/APSkE/S88sgLAQIBYgIRAgLMAwYCAdQEBQDDCDHAJJfBOAB0NMDAXGwlRNfA/AL4PpA+kAx+gAxcdch+gAx+gAwc6m0AALTH4IQD4p+pVIgupUxNFnwCOCCEBeNRRlSILqWMUREA/AJ4DWCEFlfB7y6k1nwCuBfBIQP8vCAAET6RDBwuvLhTYAIBSAcOAgEgCAoB8QD0z/6APpAIfAB7UTQ+gD6QPpA1DBRNqFSKscF8uLBKML/8uLCVDRCcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMkg+QBwdMjLAsoHy//J0AT6QPQEMfoAINdJwgDy4sR3gBjIywVQCM8WcPoCF8trE8yAJAK6CEBeNRRnIyx8Zyz9QB/oCIs8WUAbPFiX6AlADzxbJUAXMI5FykXHiUAioE6CCCOThwKoAggiYloCgoBS88uLFBMmAQPsAECPIUAT6AljPFgHPFszJ7VQD9ztRND6APpA+kDUMAjTP/oAUVGgBfpA+kBTW8cFVHNtcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMn5AHB0yMsCygfL/8nQUA3HBRyx8uLDCvoAUaihggiYloCCCJiWgBK2CKGCCOThwKAYoSfjDyXXCwHDACOALDA0AcFJ5oBihghBzYtCcyMsfUjDLP1j6AlAHzxZQB88WyXGAEMjLBSTPFlAG+gIVy2oUzMlx+wAQJBAjAA4QSRA4N18EAHbCALCOIYIQ1TJ223CAEMjLBVAIzxZQBPoCFstqEssfEss/yXL7AJM1bCHiA8hQBPoCWM8WAc8WzMntVAIBIA8QANs7UTQ+gD6QPpA1DAH0z/6APpAMFFRoVJJxwXy4sEnwv/y4sKCCOThwKoAFqAWvPLiw4IQe92X3sjLHxXLP1AD+gIizxYBzxbJcYAYyMsFJM8WcPoCy2rMyYBA+wBAE8hQBPoCWM8WAc8WzMntVIACDIAg1yHtRND6APpA+kDUMATTH4IQF41FGVIguoIQe92X3hO6ErHy4sXTPzH6ADAToFAjyFAE+gJYzxYBzxbMye1UgABug9gXaiaH0AfSB9IGoYfCn2Es=",
       "walletCodeHash": "a760d629d5343e76d045017d9dc216fc8a307a8377815feb2b0a5c490e733486",
       "cap": "1000000000000",
       "adapter": "tep74-reference",
-      "escrow": "0:f893afff44284891949440230d6264a98ed3c76226cdeee12af511b55caa412b",
-      "codeHash": "97f574cf97f0c633d66f843caac2f156ae230da4c219da0220e9e0f7cecf721d",
-      "configHash": "0ff84c91bd5a113147245bc15047ae1ebe3e1043aa28f210cd63a6cbee7df378"
+      "escrow": "0:48d76f3d476e5f9ad955d88ddd7ea5aa0c361df744354a5bb836457d04c9e28f",
+      "codeHash": "b04e0069d7f19de60359a38d39b3ea010dee24a9fb232df3c392bf4cb602ed35",
+      "configHash": "b758f459f785ceb824f20d6d68403105052f318a5e3668492693e5e4e7f4cfd7"
     }
   ],
   "tonVerification": {
     "network": "ton-testnet",
     "block": {
-      "seqno": 90819622,
+      "seqno": 90835688,
       "shard": "-9223372036854775808",
       "workchain": -1,
-      "fileHash": "t786XE4ELT55sJj/0XPd9rNYbY1g7wZkcjJMJexiNfQ=",
-      "rootHash": "BtomHaZrvchyIn7eJ/TgqsMSfzknsAcqcKlMEbm9Io4="
+      "fileHash": "yfmIyT0pB4HjV994OoWWrwPphK3+TIYS1mHDDtjnQuw=",
+      "rootHash": "AHE0G/bWBsztjsRR0cUPtJmhTiz+/kkVtJNlaaGFD1M="
     },
     "results": [
       {
         "asset": 0,
         "role": "minter",
-        "address": "0:2ef9f7bb6e196763fc4240a9a12c54edf7936f6e8a2029161b7367bc2a76532c",
+        "address": "0:3307d25e9e6950e51ad6e0ca5935ec7fff4a5562e9e4811ac585bd0ebde23d57",
         "codeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
         "last": {
-          "lt": "102601839000003",
-          "hash": "qgoMyp5otLqhmRfGnrgffWVV4WsOyvX3JD58mCjGoPk="
+          "lt": "102617905000003",
+          "hash": "lBgEsUku351vL0uGdDETwpF25EBGTn7hl6g+e9s5a+A="
         }
       },
       {
         "asset": 0,
         "role": "escrow",
-        "address": "0:a56d03b90f55fb662f1fd3b4a9e673f3b7dc07773392f19b61e46d30f94c68da",
-        "codeHash": "97f574cf97f0c633d66f843caac2f156ae230da4c219da0220e9e0f7cecf721d",
+        "address": "0:fb6b8da90ed7349a8175752ee5dd4673100dbe8a601901ed68526fb91a89472d",
+        "codeHash": "b04e0069d7f19de60359a38d39b3ea010dee24a9fb232df3c392bf4cb602ed35",
         "last": {
-          "lt": "102601839000005",
-          "hash": "agL/HO2MXbZlVwBaOPMziOi4xVFDlFIaK2/JT0GE6xg="
+          "lt": "102617905000005",
+          "hash": "QkOBX53slYG7j4iO8uplWPivCI3XgDzQBEOuzMWJg5w="
         }
       },
       {
         "asset": 1,
         "role": "minter",
-        "address": "0:f362eab5a3a212a5b9bd0576a92d9c5652aa2a314d1f624fb364d504e0835f2d",
+        "address": "0:17077a7c87f0459fbabe62bbcdbbe3a14149f8c695a72f9d44c5d7420fb33269",
         "codeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
         "last": {
-          "lt": "102601839000004",
-          "hash": "g69TtW8S10hBDh1vTNClWgk+liyI3frHNUe7PZJELrw="
+          "lt": "102617905000004",
+          "hash": "ecujgK25IDbloVRcpqrPiGxsfLRkr/LFfksnU/+in9w="
         }
       },
       {
         "asset": 1,
         "role": "escrow",
-        "address": "0:f893afff44284891949440230d6264a98ed3c76226cdeee12af511b55caa412b",
-        "codeHash": "97f574cf97f0c633d66f843caac2f156ae230da4c219da0220e9e0f7cecf721d",
+        "address": "0:48d76f3d476e5f9ad955d88ddd7ea5aa0c361df744354a5bb836457d04c9e28f",
+        "codeHash": "b04e0069d7f19de60359a38d39b3ea010dee24a9fb232df3c392bf4cb602ed35",
         "last": {
-          "lt": "102601839000006",
-          "hash": "Boe1cNyBTk5KxVFX09+d/4DUU1LLK+0i66fRBd5Qgng="
+          "lt": "102617905000006",
+          "hash": "BVdWlV10U4FzUfHUp6TGNYof8h0F1NMA423k+wZlpJE="
         }
       }
     ]

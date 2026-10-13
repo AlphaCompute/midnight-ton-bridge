@@ -91,7 +91,7 @@ test('standard escrow: a refund rejected downstream is restored by quorum and pa
  const evidence=(await observeFailedTransfer(r.client,r.asset,r.escrow.address,0n,250n,trace)).evidence;
  const [sa,sb]=quorumSign(failureDigest(r.escrow.address,r.domain,0n,evidence,pending));
  assert.equal(exitOf(await r.escrow.send(r.attacker.getSender(),failureBody(0n,evidence,0,2,sa,sb)),r.escrow.address),0);
- const record=(await r.escrow.getCell('refund',0n)).beginParse();assert.equal(record.loadUintBig(64),250n);assert(record.loadAddress().equals(r.user.address));
+ const record=(await r.escrow.getCell('refund',0n)).beginParse();assert.equal(record.loadCoins(),250n);assert(record.loadAddress().equals(r.user.address));
  assert.equal(await r.escrow.getNumber('locked'),0n);
  await restore();await r.escrow.send(r.attacker.getSender(),refundBody(0n));
  assert.equal(await r.balance(r.wallet),10000n);assert.equal(await r.balance(r.escrowWallet),0n);
@@ -151,20 +151,39 @@ test('standard escrow: unrecorded credits are refunded to their sender once, by 
  assert.equal(await r.escrow.getNumber('locked'),40n);
 });
 
-test('standard escrow: a deposit above the uint64 ledger is returned immediately',async()=>{
+test('standard escrow: a deposit above the uint64 ledger becomes an exact, caller-funded refund',async()=>{
  const r=await route(1000n),big=await r.chain.treasury('whale'),max=(1n<<64n)-1n;
  for(let i=0;i<2;i++)await r.master.send(r.owner.getSender(),referenceMintBody(big.address,max,BigInt(i)));
  const whale=r.chain.openContract(referenceWallet(big.address,r.master.address,r.wc));
  assert.equal(await r.balance(whale),2n*max);
  const body=rawTransfer({query:1n,amount:max+1n,to:r.escrow.address,response:big.address,recipient:Buffer.alloc(32,9)});
- const ton=async(a:Address)=>(await r.chain.getContract(a)).balance,escrowBefore=await ton(r.escrow.address),whaleBefore=await ton(big.address);
  const res=await whale.send(big.getSender(),body,DEPOSIT_ATTACHED_TON);assert.equal(exitOf(res,r.escrow.address),0);
- // The escrow funds the return and recovers its unused TON: the sender gains nothing,
- // so oversized deposits cannot be looped to siphon the escrow's balance.
- assert(escrowBefore-(await ton(r.escrow.address))<toNano('0.03'),'escrow loses at most fees');
- assert(await ton(big.address)<whaleBefore,'sender cannot profit from the escrow-funded return');
- // Credited to the escrow wallet, then sent straight back to the sender.
- assert.equal(res.transactions.filter(t=>t.address===accountId(r.escrowWallet.address)).length,2);
- assert.equal(await r.balance(whale),2n*max);assert.equal(await r.balance(r.escrowWallet),0n);
- assert.equal(await r.escrow.getNumber('locked'),0n);assert.equal(await r.escrow.getNumber('refundCount'),0n);
+ // Recorded like any other invalid deposit; the escrow spends none of its own TON on it.
+ assert.equal(await r.escrow.getNumber('locked'),0n);assert.equal(await r.escrow.getNumber('refundCount'),1n);
+ const record=(await r.escrow.getCell('refund',0n)).beginParse();assert.equal(record.loadCoins(),max+1n);assert(record.loadAddress().equals(big.address));
+ assert.equal(await r.balance(r.escrowWallet),max+1n);
+ // Repeated oversized or malformed deposits cannot drain the escrow's TON: each is paid
+ // for by its own notification and only adds a refund record; nothing is sent out.
+ for(let i=2;i<8;i++)await r.master.send(r.owner.getSender(),referenceMintBody(big.address,max,BigInt(i)));
+ const ton=async()=>(await r.chain.getContract(r.escrow.address)).balance,before=await ton();
+ for(let i=0;i<3;i++){
+  await whale.send(big.getSender(),rawTransfer({query:BigInt(10+i),amount:max+1n,to:r.escrow.address,response:big.address,recipient:Buffer.alloc(32,9)}),DEPOSIT_ATTACHED_TON);
+  await r.wallet.send(r.user.getSender(),rawTransfer({query:BigInt(20+i),amount:1n,to:r.escrow.address,response:r.user.address}),DEPOSIT_ATTACHED_TON);
+ }
+ assert.equal(await r.escrow.getNumber('refundCount'),7n);assert(await ton()>=before,'invalid deposits must not cost the escrow TON');
+ // Even with an empty escrow balance the refund is paid, because its caller funds it.
+ const account=(await r.chain.getContract(r.escrow.address)).account;account.account!.storage.balance.coins=0n;await r.chain.setShardAccount(r.escrow.address,account);
+ assert.equal(exitOf(await r.escrow.send(r.attacker.getSender(),refundBody(0n)),r.escrow.address),0);
+ // The first oversized deposit is back with its sender; the rest stay recorded for refund.
+ assert.equal(await r.balance(whale),8n*max-3n*(max+1n));assert.equal(await r.balance(r.escrowWallet),3n*(max+1n)+3n);
+});
+
+test('standard escrow: an unrecorded credit whose excess TON returns to the escrow is still recoverable',async()=>{
+ // The jetton wallet sends `excesses` to the response address; when that is the escrow,
+ // it must not be mistaken for a transfer notification.
+ const r=await route(1000n),credit=(res:Sent)=>res.transactions.find(t=>t.address===accountId(r.escrowWallet.address)&&t.inMessage?.info.type==='internal')!;
+ const res=await r.wallet.send(r.user.getSender(),rawTransfer({query:7n,amount:50n,to:r.escrow.address,response:r.escrow.address,forward:0n,recipient:Buffer.alloc(32,9)}));r.setHistory(res.transactions);
+ assert.equal(await r.escrow.getNumber('refundCount'),0n);assert.equal(await r.balance(r.escrowWallet),50n);
+ const seen=await observeUnrecordedCredit(r.client,r.asset,r.escrow.address,{credit:txLocator(credit(res))});
+ assert.equal(seen.amount,50n);assert(seen.from.equals(r.user.address));
 });

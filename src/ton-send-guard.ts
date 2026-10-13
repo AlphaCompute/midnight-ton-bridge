@@ -14,9 +14,13 @@ export function assertTonSendAvailable(entries:Entry[],wallet:string,seqno:numbe
 }
 /** Journal ID for a new attempt of a logical send. Retrying is allowed only after every
  * earlier attempt is a proven rejection; anything else must be reconciled first. */
-export function nextAttemptId(get:(id:string)=>Entry|undefined,id:string){
+export function nextAttemptId(get:(id:string)=>Entry|undefined,id:string,{afterConfirmed=false}={}){
  let attempt=id;
- for(let n=2;get(attempt);n++){if(get(attempt)!.stage!=='rejected')throw new Error('Existing send attempt; reconcile exact transaction before retrying');attempt=`${id}#${n}`;}
+ // `afterConfirmed` is for callers holding on-chain proof that a confirmed earlier send
+ // had no lasting effect (for example a release the escrow restored); unresolved attempts
+ // still block.
+ const settled=(stage:Entry['stage'])=>stage==='rejected'||(afterConfirmed&&stage==='confirmed');
+ for(let n=2;get(attempt);n++){if(!settled(get(attempt)!.stage))throw new Error('Existing send attempt; reconcile exact transaction before retrying');attempt=`${id}#${n}`;}
  return attempt;
 }
 /** Seconds beyond valid_until before a finalized block time proves expiry; covers

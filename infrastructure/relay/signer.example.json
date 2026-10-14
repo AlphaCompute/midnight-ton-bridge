@@ -1,0 +1,6 @@
+{
+  "mailbox": "/srv/bridge-mailbox",
+  "intervalMs": 30000,
+  "deposits": ["/etc/midnight-ton-bridge/deposit-asset-0.json", "/etc/midnight-ton-bridge/deposit-asset-1.json"],
+  "redemption": "/etc/midnight-ton-bridge/redemption.json"
+}

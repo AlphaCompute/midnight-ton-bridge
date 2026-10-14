@@ -1,6 +1,6 @@
 {
   "name": "@alphaton/midnight-ton-bridge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -23,6 +23,7 @@
     "demo:local": "tsx --env-file-if-exists=.env scripts/demo-local.ts",
     "demo:testnet": "tsx --env-file-if-exists=.env scripts/demo-testnet.ts",
     "demo:unrecorded": "tsx --env-file-if-exists=.env scripts/demo-unrecorded.ts",
+    "demo:relayer": "tsx --env-file-if-exists=.env scripts/demo-relayer.ts",
     "verify:local": "tsx --env-file-if-exists=.env scripts/verify-local.ts",
     "verify:testnet": "tsx --env-file-if-exists=.env scripts/verify-testnet.ts",
     "check:route": "tsx --env-file-if-exists=.env scripts/check-route.ts",
@@ -30,6 +31,7 @@
     "reconcile:ton": "tsx --env-file-if-exists=.env scripts/reconcile-ton.ts",
     "operator": "tsx --env-file-if-exists=.env scripts/operator.ts",
     "relay": "tsx --env-file-if-exists=.env scripts/relay.ts",
+    "watch": "tsx --env-file-if-exists=.env scripts/watch.ts",
     "app": "tsx --env-file-if-exists=.env app/server.ts",
     "monitor": "node --env-file-if-exists=.env dist/scripts/monitor.js",
     "release": "node scripts/release.mjs"
@@ -74,10 +76,6 @@
     "./client": {
       "types": "./dist/src/sdk.d.ts",
       "import": "./dist/src/sdk.js"
-    },
-    "./midnight-provider": {
-      "types": "./dist/src/live-midnight.d.ts",
-      "import": "./dist/src/live-midnight.js"
     }
   },
   "files": [
@@ -87,7 +85,6 @@
     "docs",
     "README.md",
     "LICENSE",
-    "dist/scripts",
     "infrastructure",
     "compose.yaml",
     ".env.example",

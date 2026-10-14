@@ -2,7 +2,9 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {ecMulGenerator,createConstructorContext} from '@midnight-ntwrk/compact-runtime';
 import {verifyingKey,signClaim,verifyClaim,validPoint,JUBJUB_ORDER} from '../src/midnight.js';
-import {MIDNIGHT_SECRETS,deployMidnight,claimDigest,claimSignatures} from './helpers/midnight.js';
+import {Address} from '@ton/core';
+import {depositId} from '../src/escrow.js';
+import {MIDNIGHT_SECRETS,deployMidnight,claimDigest,claimSignatures,claimQuorum} from './helpers/midnight.js';
 
 const recipient={bytes:Buffer.alloc(32,4)};
 
@@ -43,4 +45,31 @@ test('canonical Schnorr scalars, nonidentity and subgroup membership fail closed
  assert.throws(()=>deploy(torsion),/unreachable/);
  assert.throws(()=>m.circuits.claim(m.context,id,0n,100n,recipient,0n,2n,{...a,announcement:torsion},b),/unreachable/);
  assert.equal(m.state.circulating[0],0n);
+});
+
+test('one committee member cannot claim alone through an out-of-range second index',()=>{
+ // committeeMember maps every index >=2 to member 2, so only the b<3 bound stops (2,3).
+ const m=deployMidnight(),r=Buffer.alloc(32,5),[,sb]=claimSignatures(m,r,0n,100n,recipient);
+ assert.throws(()=>m.circuits.claim(m.context,r,0n,100n,recipient,2n,3n,sb,sb),/invalid quorum/);
+ assert.throws(()=>m.circuits.claim(m.context,r,0n,100n,recipient,3n,4n,sb,sb),/invalid quorum/);
+ assert.equal(m.state.circulating[0],0n);
+});
+
+test('claim signatures bind the receipt ID',()=>{
+ const m=deployMidnight(),[sa,sb]=claimSignatures(m,Buffer.alloc(32,61),0n,100n,recipient);
+ assert.throws(()=>m.circuits.claim(m.context,Buffer.alloc(32,62),0n,100n,recipient,0n,2n,sa,sb),/invalid signature/);
+});
+
+test('constructor rejects a committee repeating any key',()=>{
+ const m=deployMidnight(),[k0,k1]=[verifyingKey(11n),verifyingKey(22n)];
+ for(const keys of [[k0,k0,k1],[k0,k1,k1],[k0,k1,k0]])
+  assert.throws(()=>m.contract.initialState(createConstructorContext({},'00'.repeat(32)),m.domain,keys,1000n),/duplicate committee/);
+});
+
+test('sequence 0 of both asset escrows yields distinct receipts that both claim',()=>{
+ const escrows=[new Address(0,Buffer.alloc(32,1)).toRawString(),new Address(0,Buffer.alloc(32,2)).toRawString()];
+ const [a,b]=escrows.map(e=>Buffer.from(depositId(e,0n),'hex')) as [Buffer,Buffer];
+ assert.notDeepEqual(a,b);
+ const m=claimQuorum(claimQuorum(deployMidnight(),a,0n,100n,recipient),b,1n,200n,recipient);
+ assert.deepEqual(m.state.circulating,[100n,200n]);
 });

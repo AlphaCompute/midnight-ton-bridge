@@ -1,11 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {Address,beginCell,Cell,toNano,TupleReader,type Transaction} from '@ton/core';
-import {OP,transferBody,releaseDigest,releaseBody,refundBody,DEPOSIT_ATTACHED_TON} from '../src/ton.js';
+import {Address,beginCell,Cell,toNano,TupleReader,type Builder,type Transaction} from '@ton/core';
+import {internal} from '@ton/sandbox';
+import {OP,TonContract,escrowData,transferBody,releaseDigest,releaseBody,refundBody,DEPOSIT_ATTACHED_TON,DEPOSIT_FORWARD_TON} from '../src/ton.js';
 import {referenceWallet,referenceMintBody,validateAssets,verifyAsset,failureDigest,failureBody,unrecordedDigest,unrecordedBody} from '../src/jettons.js';
 import {observeFailedTransfer,observeUnrecordedCredit,txLocator} from '../src/ton-traces.js';
-import {quorumSign,accountId,exitOf,rawTransfer} from './helpers/ton.js';
-import {route} from './helpers/standard-route.js';
+import {quorumSign,accountId,exitOf,rawTransfer,TON_COMMITTEE} from './helpers/ton.js';
+import {route,STANDARD_DOMAIN} from './helpers/standard-route.js';
 
 type Sent={transactions:Transaction[]};
 
@@ -186,4 +187,106 @@ test('standard escrow: an unrecorded credit whose excess TON returns to the escr
  assert.equal(await r.escrow.getNumber('refundCount'),0n);assert.equal(await r.balance(r.escrowWallet),50n);
  const seen=await observeUnrecordedCredit(r.client,r.asset,r.escrow.address,{credit:txLocator(credit(res))});
  assert.equal(seen.amount,50n);assert(seen.from.equals(r.user.address));
+});
+
+test('standard escrow: a masterchain owner can deposit, and releases to the escrow itself are refused',async()=>{
+ const r=await route(1000n),mc=await r.chain.treasury('mc-owner',{workchain:-1});
+ await r.master.send(r.owner.getSender(),referenceMintBody(mc.address,500n,9n));
+ // A masterchain owner's jetton wallet still lives on basechain.
+ const got=await r.chain.runGetMethod(r.master.address,'get_wallet_address',[{type:'slice',cell:beginCell().storeAddress(mc.address).endCell()}]);
+ const mcWallet=got.stackReader.readAddress();assert.equal(mcWallet.workChain,0);
+ const res=await mc.send({to:mcWallet,value:DEPOSIT_ATTACHED_TON,body:transferBody(1n,300n,r.escrow.address,mc.address,Buffer.alloc(32,9))});
+ assert.equal(exitOf(res,r.escrow.address),0);assert.equal(await r.escrow.getNumber('locked'),300n);assert.equal(await r.escrow.getNumber('depositCount'),1n);
+ // Paying the escrow or its own jetton wallet would loop backing into self-refunds.
+ for(const to of [r.escrow.address,r.escrowWallet.address])assert.equal(exitOf(await r.escrow.send(r.attacker.getSender(),r.release(Buffer.alloc(32,5),200n,to)),r.escrow.address),412);
+ assert.equal(await r.escrow.getNumber('locked'),300n);assert.equal(await r.escrow.getNumber('refundCount'),0n);
+});
+
+/** Committee slot `i` named twice with the same (valid) signature: no TS encoder emits this. */
+const oneKeyQuorum=(b:Builder,i:number,sig:Buffer)=>b.storeUint(i,8).storeUint(i,8).storeRef(beginCell().storeBuffer(sig).endCell()).storeRef(beginCell().storeBuffer(sig).endCell()).endCell();
+
+test('standard escrow: one committee key signing twice is not a recovery quorum',async()=>{
+ const r=await route(1000n),send=async(body:Cell)=>exitOf(await r.escrow.send(r.attacker.getSender(),body),r.escrow.address),ev=Buffer.alloc(32,7);
+ // Unrecorded-credit refund: key 1 alone would mint a refund claim on escrowed backing.
+ const [u]=quorumSign(unrecordedDigest(r.escrow.address,r.domain,ev,500n,r.attacker.address),1,2);
+ assert.equal(await send(oneKeyQuorum(beginCell().storeUint(OP.refundUnrecorded,32).storeBuffer(ev).storeCoins(500n).storeAddress(r.attacker.address),1,u)),404);
+ assert.equal(await r.escrow.getNumber('refundCount'),0n);assert.equal(await r.escrow.getNumber('recovered',BigInt('0x'+ev.toString('hex'))),0n);
+ // Failed-transfer restoration: a real pending release whose payout bounced downstream.
+ await r.wallet.send(r.user.getSender(),transferBody(1n,1000n,r.escrow.address,r.user.address,Buffer.alloc(32,8)));
+ await r.setBalance(r.wallet.address,r.user.address,(1n<<120n)-1n);await r.escrow.send(r.attacker.getSender(),r.release(Buffer.alloc(32,10),100n,r.user.address));
+ const pending=await r.escrow.getCell('pending',0n),d=failureDigest(r.escrow.address,r.domain,0n,ev,pending),[f]=quorumSign(d,1,2);
+ assert.equal(await send(oneKeyQuorum(beginCell().storeUint(OP.restoreFailed,32).storeUint(0n,64).storeBuffer(ev),1,f)),404);
+ assert.equal(await r.escrow.getNumber('locked'),900n);assert((await r.escrow.getCell('pending',0n)).equals(pending));
+ // The same signature paired with a second key is accepted, so only the distinct-key check stood in the way.
+ const [fa,fb]=quorumSign(d,0,1);assert.equal(await send(failureBody(0n,ev,0,1,fa,fb)),0);assert.equal(await r.escrow.getNumber('locked'),1000n);
+});
+
+test('standard escrow: a release signature binds escrow, receipt, amount and domain',async()=>{
+ const r=await route(1000n),send=async(to:typeof r.escrow,body:Cell)=>exitOf(await to.send(r.attacker.getSender(),body),to.address),id=Buffer.alloc(32,3);
+ await r.wallet.send(r.user.getSender(),transferBody(1n,500n,r.escrow.address,r.user.address,Buffer.alloc(32,9)));
+ // A twin escrow for the same jetton, committee and domain (only its cap differs).
+ const twin=r.chain.openContract(TonContract.create(r.ec,escrowData(r.domain,TON_COMMITTEE,r.master.address,r.wc,999n)));await twin.send(r.owner.getSender());
+ await r.wallet.send(r.user.getSender(),transferBody(2n,500n,twin.address,r.user.address,Buffer.alloc(32,9)));assert.equal(await twin.getNumber('locked'),500n);
+ const [sa,sb]=quorumSign(releaseDigest(r.escrow.address,r.domain,id,100n,r.user.address));
+ assert.equal(await send(twin,releaseBody(id,100n,r.user.address,0,2,sa,sb)),407);assert.equal(await twin.getNumber('locked'),500n);
+ assert.equal(await send(r.escrow,releaseBody(Buffer.alloc(32,4),100n,r.user.address,0,2,sa,sb)),407);
+ assert.equal(await send(r.escrow,releaseBody(id,200n,r.user.address,0,2,sa,sb)),407);
+ const [da,db]=quorumSign(releaseDigest(r.escrow.address,Buffer.alloc(32,1),id,100n,r.user.address));
+ assert.equal(await send(r.escrow,releaseBody(id,100n,r.user.address,0,2,da,db)),407);
+ assert.equal(await r.escrow.getNumber('locked'),500n);assert.equal(await r.escrow.getNumber('nextRelease'),0n);
+ assert.equal(await send(r.escrow,releaseBody(id,100n,r.user.address,0,2,sa,sb)),0);assert.equal(await r.escrow.getNumber('locked'),400n);
+});
+
+test('standard escrow: an unrecorded-credit attestation binds its sender and evidence',async()=>{
+ const r=await route(1000n),send=async(body:Cell)=>exitOf(await r.escrow.send(r.attacker.getSender(),body),r.escrow.address),ev=Buffer.alloc(32,7);
+ const [sa,sb]=quorumSign(unrecordedDigest(r.escrow.address,r.domain,ev,5n,r.user.address));
+ assert.equal(await send(unrecordedBody(ev,5n,r.attacker.address,0,2,sa,sb)),407);
+ assert.equal(await send(unrecordedBody(Buffer.alloc(32,8),5n,r.user.address,0,2,sa,sb)),407);
+ assert.equal(await r.escrow.getNumber('refundCount'),0n);assert.equal(await r.escrow.getNumber('recovered',BigInt('0x'+ev.toString('hex'))),0n);
+ assert.equal(await send(unrecordedBody(ev,5n,r.user.address,0,2,sa,sb)),0);
+ const record=(await r.escrow.getCell('refund',0n)).beginParse();assert.equal(record.loadCoins(),5n);assert(record.loadAddress().equals(r.user.address));
+});
+
+test('standard escrow: a transfer bounced by its own jetton wallet restores the release; other bounces do not',async()=>{
+ const r=await route(1000n),id=Buffer.alloc(32,3),receipt=BigInt('0x'+id.toString('hex'));
+ await r.wallet.send(r.user.getSender(),transferBody(1n,500n,r.escrow.address,r.user.address,Buffer.alloc(32,9)));
+ // The escrow's wallet holds less than the release, so it rejects the Transfer back to the escrow.
+ const restore=await r.setBalance(r.escrowWallet.address,r.escrow.address,10n),body=r.release(id,100n,r.user.address);
+ const res=await r.escrow.send(r.attacker.getSender(),body);
+ const back=res.transactions.filter(t=>t.address===accountId(r.escrow.address)&&t.inMessage?.info.type==='internal'&&t.inMessage.info.bounced);
+ assert.equal(back.length,1);assert.equal(exitOf({transactions:back},r.escrow.address),0);
+ assert.equal(await r.escrow.getNumber('locked'),500n);assert.equal(await r.escrow.getNumber('releaseState',receipt),0n);
+ await assert.rejects(()=>r.escrow.getCell('pending',0n),/exit_code: 9/);assert.equal(await r.escrow.getNumber('nextRelease'),1n);
+ // Once the wallet can pay, the same signed release goes through exactly once.
+ await restore();assert.equal(exitOf(await r.escrow.send(r.attacker.getSender(),body),r.escrow.address),0);
+ assert.equal(await r.escrow.getNumber('locked'),400n);assert.equal(await r.balance(r.wallet),9500n+100n);
+ // A pending release left by a downstream rejection, then a forged bounce of its Transfer.
+ await r.setBalance(r.wallet.address,r.user.address,(1n<<120n)-1n);await r.escrow.send(r.attacker.getSender(),r.release(Buffer.alloc(32,4),100n,r.user.address));
+ assert.equal(await r.escrow.getNumber('locked'),300n);const pending=await r.escrow.getCell('pending',2n);
+ const bounced=beginCell().storeUint(OP.bounced,32).storeUint(OP.jettonTransfer,32).storeUint(2n,64).storeCoins(100n).endCell();
+ const bounce=(from:Address)=>r.chain.sendMessage(internal({from,to:r.escrow.address,value:toNano('0.05'),bounced:true,bounce:false,body:bounced}));
+ assert.equal(exitOf(await bounce(r.attacker.address),r.escrow.address),401);
+ assert.equal(await r.escrow.getNumber('locked'),300n);assert((await r.escrow.getCell('pending',2n)).equals(pending));
+ // The identical bounce from the escrow's wallet does restore, so only the sender check refused it.
+ assert.equal(exitOf(await bounce(r.escrowWallet.address),r.escrow.address),0);assert.equal(await r.escrow.getNumber('locked'),400n);
+});
+
+test('standard escrow: zero-amount deposits are refused and an empty forward payload becomes a refund',async()=>{
+ const r=await route(1000n),to=Buffer.alloc(32,9),send=async(body:Cell)=>exitOf(await r.wallet.send(r.user.getSender(),body,DEPOSIT_ATTACHED_TON),r.escrow.address);
+ const state=async()=>[await r.escrow.getNumber('locked'),await r.escrow.getNumber('depositCount'),await r.escrow.getNumber('refundCount')];
+ assert.equal(await send(rawTransfer({query:1n,amount:0n,to:r.escrow.address,response:r.user.address,recipient:to})),402);assert.deepEqual(await state(),[0n,0n,0n]);
+ // Sender wallets always emit the Either bit; a minter can notify with no payload bits at all.
+ const notify=beginCell().storeUint(OP.internalTransfer,32).storeUint(2n,64).storeCoins(50n).storeAddress(r.user.address).storeAddress(null).storeCoins(DEPOSIT_FORWARD_TON).endCell();
+ const minted=await r.master.send(r.owner.getSender(),beginCell().storeUint(OP.referenceMint,32).storeUint(2n,64).storeAddress(r.escrow.address).storeCoins(100_000_000n).storeRef(notify).endCell());
+ assert.equal(exitOf(minted,r.escrow.address),0);assert.deepEqual(await state(),[0n,0n,1n]);
+ // An Either-left payload with no recipient is a refund too, never a deposit for recipient 0.
+ assert.equal(await send(transferBody(3n,60n,r.escrow.address,r.user.address)),0);assert.deepEqual(await state(),[0n,0n,2n]);
+ for(const [id,amount] of [[0n,50n],[1n,60n]] as const){const rec=(await r.escrow.getCell('refund',id)).beginParse();assert.equal(rec.loadCoins(),amount);assert(rec.loadAddress().equals(r.user.address));}
+ for(const id of [0n,1n])await r.escrow.send(r.attacker.getSender(),refundBody(id));
+ assert.equal(await r.balance(r.wallet),10000n+50n);
+});
+
+test('escrowData rejects a committee that repeats a key',()=>{
+ const [k0,,k2]=TON_COMMITTEE as [Buffer,Buffer,Buffer];
+ assert.throws(()=>escrowData(STANDARD_DOMAIN,[k0,k0,k2],new Address(0,Buffer.alloc(32,1)),Cell.EMPTY),/invalid domain\/committee/);
 });

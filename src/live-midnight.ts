@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import {ApiPromise,WsProvider} from '@polkadot/api';
 import {firstValueFrom,filter,timeout} from 'rxjs';
 import {resolve} from 'node:path';
@@ -15,12 +16,15 @@ import {openPersistentWallet} from './midnight-wallet.js';
 import {acquireLock,network as configuredNetwork,readSecret,statePath} from './environment.js';
 import {witnesses,type CircuitName} from './midnight.js';
 import {Journal} from './journal.js';
-import {midnightEndpoints} from './midnight-endpoints.js';
+import {midnightEndpoints,redactEndpoints} from './midnight-endpoints.js';
 import {installWebSocket,midnightNetworkId} from './midnight-indexer.js';
 
 export async function openMidnight(options:{waitForFunds?:boolean}={}){
  const network=configuredNetwork();
  if(network!=='local'&&network!=='preprod')throw new Error('test networks only');
+ // Proofs need keys built from the same source and compiler as the bindings in use.
+ const fingerprint=(p:string)=>{try{return readFileSync(p,'utf8');}catch{return undefined;}};
+ if(fingerprint('build/midnight/keys/.source-fingerprint')!==fingerprint('build/midnight/.source-fingerprint'))throw new Error('Missing or stale Midnight proving keys; run npm run compile:midnight -- --proof');
  const local=network==='local',networkId=midnightNetworkId(network);
  const env:EnvironmentConfiguration={walletNetworkId:networkId,networkId,...midnightEndpoints(network),faucet:undefined};
  // Public-network seeds come only from an owner-only file; a raw MIDNIGHT_SEED is a local convenience.
@@ -30,7 +34,7 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
  setNetworkId(networkId);installWebSocket();
  // Released on any exit, including SDK crashes from unhandled socket errors; journals,
  // not this lock, guard against duplicate transactions.
- const release=acquireLock(statePath('midnight-wallet.lock'),{network:networkId}),unlock=()=>{process.off('exit',unlock);release();};process.once('exit',unlock);
+ const unlock=acquireLock(statePath('midnight-wallet.lock'),{network:networkId},{exitOnSignal:true});
  let journal:Journal,built:Awaited<ReturnType<typeof openPersistentWallet>>;
  try{journal=new Journal(statePath('midnight-transactions.sqlite'));}catch(error){unlock();throw error;}
  try{built=await openPersistentWallet(env,seed);}catch(error){journal.close();unlock();throw error;}
@@ -58,10 +62,16 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
     const extrinsic=nodeApi.tx.midnight?.sendMnTransaction;if(!extrinsic)throw new Error('node lacks Midnight transaction extrinsic');send=extrinsic;
    }catch(error){
     // Nothing has left this process yet, so the entry is provably dead rather than ambiguous.
-    journal.move(id,'prepared','rejected',{error:`not broadcast: ${String(error)}`});throw error;
+    journal.move(id,'prepared','rejected',{error:redactEndpoints(`not broadcast: ${String(error)}`)});throw error;
    }
    journal.move(id,'prepared','sending');
-   await nodeApi.rpc.author.submitExtrinsic(send('0x'+raw).toHex());
+   try{await nodeApi.rpc.author.submitExtrinsic(send('0x'+raw).toHex());}
+   catch(error){
+    // The node's transaction pool refused it outright (1010 invalid, 1012 immediately
+    // dropped): it cannot be included. Anything else (a disconnect) stays ambiguous.
+    if(/^(1010|1012):/.test(String((error as Error)?.message??'')))journal.move(id,'sending','rejected',{error:redactEndpoints(`refused by node: ${String(error)}`)});
+    throw error;
+   }
    journal.move(id,'sending','submitted');return id;
   }}};
  const compiled=CompiledContract.make('AlphaTONBridge',Contract).pipe(CompiledContract.withWitnesses(witnesses),CompiledContract.withCompiledFileAssets(path));
@@ -85,8 +95,9 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
   }
  }catch(error){clearInterval(checkpoint);await built.save().catch(()=>{});await wallet.stop().catch(()=>{});journal.close();await nodeApi?.disconnect();unlock();throw error;}
  const finalize=(data:{status:string;identifiers:readonly string[]})=>{
-  const ok=data.status==='SucceedEntirely';
-  for(const id of data.identifiers){const row=journal.get(id);if(row&&(row.stage==='sending'||row.stage==='submitted'))journal.move(id,row.stage,ok?'confirmed':'rejected',{error:ok?null:data.status});}
+  // A partially successful transaction executed: it must not be treated as retryable.
+  const ok=data.status==='SucceedEntirely',executed=ok||data.status==='SucceedPartially';
+  for(const id of data.identifiers){const row=journal.get(id);if(row&&(row.stage==='sending'||row.stage==='submitted'))journal.move(id,row.stage,executed?'confirmed':'rejected',{error:ok?null:data.status});}
   if(!ok)throw new Error(`Midnight transaction failed: ${data.status}`);
  };
  return {wallet,providers,compiled,env,journal,
@@ -107,6 +118,8 @@ export async function openMidnight(options:{waitForFunds?:boolean}={}){
   },
   // Absence within the wait is not rejection; the entry stays pending for a later reconcile.
   reconcile:async(id:string,waitMs=120000)=>{
+   // openMidnight broadcasts only after `sending`, so a `prepared` entry never left this process.
+   const row=journal.get(id);if(row?.stage==='prepared'){journal.move(id,'prepared','rejected',{error:'never broadcast'});return {status:'rejected' as const,txId:id};}
    let timer:ReturnType<typeof setTimeout>|undefined;
    const data=await Promise.race([providers.publicDataProvider.watchForTxData(id),new Promise<null>(r=>{timer=setTimeout(()=>r(null),waitMs);})]).finally(()=>clearTimeout(timer));
    if(!data)return {status:'pending' as const,txId:id};

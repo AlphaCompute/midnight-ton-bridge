@@ -1,3 +1,4 @@
+import {cpus,platform,arch} from 'node:os';
 import {referenceWallet,referenceMintBody,verifyAsset,type JettonAsset} from '../src/jettons.js';
 import {writeFileSync,existsSync} from 'node:fs';
 import assert from 'node:assert/strict';
@@ -28,7 +29,9 @@ const evidencePath=statePath('testnet-evidence.json'),resume=flag('--resume');
 if(existsSync(evidencePath)&&!resume)throw new Error('Prior testnet attempt exists. Reconcile its journals (reconcile:ton, reconcile:midnight), then continue it with --resume.');
 if(!existsSync(evidencePath)&&resume)throw new Error('No prior attempt to resume');
 const ops=readSecret<{midnight:string;tonSeed:string}[]>(statePath('demo-operators.json'));
-const evidence:any=resume?readJson(evidencePath):{network:'TON-testnet/Midnight-preprod',custody:'single developer host; synthetic assets only',midnight:d.address,ton:plan.assets,steps:[]};
+// The machine that makes the calls, so published durations name the hardware that produced them.
+const machine={platform:platform(),architecture:arch(),cpu:cpus()[0]?.model,node:process.version};
+const evidence:any=resume?readJson(evidencePath):{network:'TON-testnet/Midnight-preprod',custody:'single developer host; synthetic assets only',midnight:d.address,ton:plan.assets,machine,steps:[]};
 if(evidence.complete)throw new Error('Demonstration already complete');
 const save=()=>writeFileSync(evidencePath,toJson(evidence));
 const m=await openMidnight(),t=openTon(),tonJournal=new Journal(statePath('ton-transactions.sqlite'));

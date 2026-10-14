@@ -20,6 +20,8 @@ export function start(port=3077,{maxNotes=MAX_NOTES}={}){
    if(req.method==='GET'&&req.url==='/'){res.writeHead(200,{'content-type':'text/html'});res.end(readFileSync(new URL('./index.html',import.meta.url)));return;}
    if(req.method!=='POST'){json(404,{error:'not found'});return;}
    const origin=req.headers.origin;if(origin&&origin!==`http://127.0.0.1:${server.address().port}`&&origin!==`http://localhost:${server.address().port}`){json(403,{error:'origin rejected'});return;}
+   // Simple cross-site form posts cannot send JSON; together with the Origin check this blocks them.
+   if(!String(req.headers['content-type']??'').startsWith('application/json')){json(415,{error:'JSON body required'});return;}
    let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>16384){json(413,{error:'body too large'});return;}}
    const input=JSON.parse(body);
    if(req.url==='/notes'){
@@ -32,8 +34,11 @@ export function start(port=3077,{maxNotes=MAX_NOTES}={}){
    if(req.url==='/notes/read'){json(notes.has(input.id)?200:404,notes.get(input.id)??{error:'unknown note'});return;}
    if(req.url==='/bridge/prepare'){
     if(!process.env.BRIDGE_CONFIG){json(503,{error:'Set BRIDGE_CONFIG to prepare test-token transfers'});return;}
-    const queryId=randomBytes(8).readBigUInt64BE()>>1n,payload=bridge().depositMessage(input.asset,BigInt(input.amount),input.midnightRecipient,input.tonSender,queryId);
-    json(200,{payload:payload.toBoc().toString('base64'),queryId:String(queryId),sendTo:'Your verified jetton wallet for this asset',attachedTON:ATTACHED_TON,network:'TON testnet',status:'unsigned; not submitted'});return;
+    if(typeof input.amount!=='string'||!/^\d+$/.test(input.amount)){json(400,{error:'amount must be integer base units'});return;}
+    // depositRequest names the sender's own jetton wallet for this token: sending the payload
+    // from any other wallet, or to the escrow, strands the tokens.
+    const deposit=bridge().depositRequest(input.asset,input.tonSender,BigInt(input.amount),input.midnightRecipient);
+    json(200,{sendTo:deposit.to,attachedTON:ATTACHED_TON,payload:deposit.payload.toBoc().toString('base64'),queryId:String(deposit.queryId),network:'TON testnet',status:'unsigned; not submitted'});return;
    }
    json(404,{error:'not found'});
   }catch{json(400,{error:'Invalid request or bridge configuration'});}

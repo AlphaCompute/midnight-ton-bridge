@@ -32,14 +32,14 @@ Contracts use **Compact** on Midnight and **Tolk** on TON, with support for the 
 
 ## Quick start
 
-Requires **Node 24** (22.18+ minimum), npm, bash, curl, tar, shasum and Docker. See [supported platforms and toolchain details](docs/deployment.md#build-from-a-clean-checkout).
+Requires **Node 24** (22.18+ minimum), npm, bash, curl, tar with xz support, shasum and Docker. Copy `.env.example` to `.env` and `chmod 600 .env` before adding provider tokens. See [supported platforms and toolchain details](docs/deployment.md#build-from-a-clean-checkout).
 
 ```sh
 git clone git@github.com:AlphaCompute/midnight-ton-bridge.git
 cd midnight-ton-bridge
 bash scripts/bootstrap.sh
 npm run check
-npm run compile:midnight -- --proof  # Proving keys for Midnight transactions (~30 min, several GB of RAM)
+npm run compile:midnight -- --proof  # Proving keys for Midnight transactions (minutes to ~30 min, several GB of RAM)
 ```
 
 `bootstrap.sh` downloads the checksum-verified Compact compiler into `.tools/`, installs dependencies and compiles both chains' contracts. Proving keys are needed only for live Midnight transactions; `npm run check` builds and runs the full test suite without them.
@@ -79,26 +79,27 @@ Keep `.state` private and preserve its transaction journals. Reconcile interrupt
 import {BridgeClient} from '@alphaton/midnight-ton-bridge/client';
 
 const bridge = new BridgeClient(config, transport);
-const body = bridge.depositMessage(
+// Deposit: send `payload` from `to` (the sender's own jetton wallet for this token) with
+// `value` nanotons (DEPOSIT_ATTACHED_TON) attached. Never send it to the escrow directly.
+const {to, value, payload} = bridge.depositRequest(
   0,                    // asset index
+  tonSender,            // the TON wallet that holds the tokens
   1000n,                // integer base units
-  midnightRecipientHex,
-  tonSender,
-  1n,                   // query ID
+  'mn_addr_preprod1…',  // Midnight recipient (bech32m, or 32-byte hex)
 );
-// Send body to the sender's verified jetton wallet with DEPOSIT_ATTACHED_TON (0.1 TON).
-// It forwards DEPOSIT_FORWARD_TON to pay the escrow; a transfer that forwards less
-// (wallet apps often forward 1 nanoton) needs committee-attested recovery as a refund.
+
+// Redeem: retires tokens on Midnight; give the committee `request`, keep `nonce` private.
+const {request, nonce} = await bridge.redeem(0, 400n, tonRecipient);
 ```
 
-`config` supplies the network (`local` or `preprod`), route domain, Midnight contract address, two TON escrows and three committee public keys. `transport` implements `call(circuit, args): Promise<string>`. Use finalized chain readback to confirm delivery.
+`config` supplies the network (`local` or `preprod`), route domain, Midnight contract address, two TON escrows, three committee public keys and, for `depositRequest`, `assets` (each token's `master`, `walletCodeBoc` and `walletCodeHash`, as in [`testnet-assets.json`](docs/evidence/testnet-assets.json)). `transport` implements `call(circuit, args): Promise<string>`. Use finalized chain readback to confirm delivery. A transfer that forwards less than `DEPOSIT_FORWARD_TON` (wallet apps often forward 1 nanoton) is not recorded and needs [committee recovery](docs/operations.md#recovery) as a refund.
 
 | Action | SDK methods |
 | --- | --- |
-| Bridge into Midnight | `depositMessage`, `claimDigest`, `claim` |
-| Bridge back to TON | `redeem` (private random nonce), `redemptionId` |
+| Bridge into Midnight | `depositRequest` (or the low-level `depositMessage`), `claimDigest`, `claim` |
+| Bridge back to TON | `redeem` (returns `nonce`, `id` and the committee `request`), `redemptionId` |
 | Trade | `quote`, `swap` |
-| Provide liquidity | `addLiquidity`, `removeLiquidity` |
+| Provide liquidity | `addLiquidity` and `removeLiquidity` take the private LP secret; `lpOwnerHash` |
 | Verify token integration | `validateAssets`, `verifyAsset`, `referenceWallet` from the package root |
 
 Install the SDK tarball from the [release bundle](https://github.com/AlphaCompute/midnight-ton-bridge/releases), or start with the [standalone notes app](https://github.com/AlphaCompute/midnight-ton-bridge-starter). The starter includes a pinned SDK package and runs with `npm ci`, `npm test` and `npm start`.
@@ -110,12 +111,15 @@ TON deposits back the Midnight representations. Liquidity providers supply those
 ## Operations
 
 ```sh
+export BRIDGE_NETWORK=preprod   # operations run against the public testnet route
 npm run check:route       # Pins, backing, circulation and journal status
 npm run build && npm run monitor   # Persistent health checks and metrics
 npm run reconcile:ton -- all
+npm run watch -- signer SIGNER_CONFIG     # Each committee member: sign new deposits and redemptions
+npm run watch -- relayer RELAYER_CONFIG   # Submit every two-signer quorum to the chains
 ```
 
-The monitor serves loopback `/healthz` and `/metrics` endpoints. [Service templates and Prometheus alerts](infrastructure/monitor) support continuous monitoring. Use the [operator runbook](docs/operations.md) for signer limits, reconciliation, [recovery](docs/operations.md#recovery) and [monitoring](docs/operations.md#monitoring).
+The monitor serves loopback `/healthz` and `/metrics` endpoints. [Service templates and Prometheus alerts](infrastructure/monitor) support continuous monitoring. Signers and the relayer exchange signatures through a shared mailbox directory and re-verify everything they read ([automated signing and relay](docs/operations.md#automated-signing-and-relay), [service templates](infrastructure/relay)). Use the [operator runbook](docs/operations.md) for signer limits, reconciliation, [recovery](docs/operations.md#recovery) and [monitoring](docs/operations.md#monitoring).
 
 ## Documentation
 

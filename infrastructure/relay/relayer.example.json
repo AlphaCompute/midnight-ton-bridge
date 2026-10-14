@@ -1,0 +1,6 @@
+{
+  "mailbox": "/srv/bridge-mailbox",
+  "intervalMs": 30000,
+  "bridge": {"network": "preprod", "domain": "...", "midnightAddress": "...", "escrows": ["0:...", "0:..."], "committee": [{"x": "...", "y": "..."}, {"x": "...", "y": "..."}, {"x": "...", "y": "..."}]},
+  "ton": {"network": "ton-testnet", "domain": "...", "escrows": ["0:...", "0:..."], "committee": ["...", "...", "..."], "walletKeyFile": "/var/lib/bridge/ton-test-wallet.json"}
+}

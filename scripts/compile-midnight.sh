@@ -13,8 +13,11 @@ fingerprint="$(shasum -a 256 contracts/midnight/bridge.compact | cut -d ' ' -f 1
 if [[ ! -f build/midnight/.source-fingerprint ]] || [[ "$(cat build/midnight/.source-fingerprint)" != "$fingerprint" ]]; then
   "$compiler" --skip-zk contracts/midnight/bridge.compact build/midnight
   printf '%s' "$fingerprint" > build/midnight/.source-fingerprint
+  # Keys from other source would prove the wrong circuits; never leave them beside new bindings.
+  rm -rf build/midnight/keys
 fi
-if [[ "${1:-}" == "--proof" ]]; then
-  mkdir -p build/midnight/keys
+if [[ "${1:-}" == "--proof" ]] && [[ "$(cat build/midnight/keys/.source-fingerprint 2>/dev/null)" != "$fingerprint" ]]; then
+  rm -rf build/midnight/keys && mkdir -p build/midnight/keys
   "$(dirname "$compiler")/zkir" compile-many build/midnight/zkir build/midnight/keys
+  printf '%s' "$fingerprint" > build/midnight/keys/.source-fingerprint
 fi

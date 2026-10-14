@@ -46,3 +46,25 @@ test('a confirmed send is retried only with explicit on-chain proof, and never p
  assert.equal(nextAttemptId(get,'release:x',{afterConfirmed:true}),'release:x#2');
  put('release:x#2','submitted');assert.throws(()=>nextAttemptId(get,'release:x',{afterConfirmed:true}),/reconcile/);
 });
+
+test('the sequence a signed wallet message commits to is read back exactly',async()=>{
+ const {walletMessageSeqno}=await import('../src/ton-send-guard.js');const {WalletContractV4}=await import('@ton/ton');const {keyPairFromSeed}=await import('@ton/crypto');const {Cell}=await import('@ton/core');
+ const pair=keyPairFromSeed(Buffer.alloc(32,9)),w=WalletContractV4.create({workchain:0,publicKey:pair.publicKey});
+ for(const seqno of [1,7,123456])assert.equal(walletMessageSeqno(w.createTransfer({seqno,secretKey:pair.secretKey,messages:[]})),seqno);
+ assert.equal(walletMessageSeqno(Cell.EMPTY),undefined);
+});
+
+test('an unfound send is settled only by direct supersession or a provable expiry',async()=>{
+ const {classifyUnfoundSend,WALLET_EXPIRY_MARGIN}=await import('../src/ton-send-guard.js');const {WalletContractV4}=await import('@ton/ton');const {keyPairFromSeed}=await import('@ton/crypto');
+ const pair=keyPairFromSeed(Buffer.alloc(32,4)),w=WalletContractV4.create({workchain:0,publicKey:pair.publicKey}),validUntil=1_800_000_000;
+ const boc=w.createTransfer({seqno:5,secretKey:pair.secretKey,messages:[],timeout:validUntil}).toBoc().toString('base64'),late=validUntil+WALLET_EXPIRY_MARGIN+1;
+ // Another message executed at this sequence in finalized history: this one can never run.
+ assert.equal(classifyUnfoundSend(boc,5,{walletSeqno:6,superseded:true,headTime:validUntil-100}),'superseded');
+ // Unconsumed after expiry at the finalized block: dead.
+ assert.equal(classifyUnfoundSend(boc,5,{walletSeqno:5,superseded:false,headTime:late}),'expired');
+ // Sequence advanced with no executor in finalized history (it may be this very message,
+ // executed after a visible failure): never settled by inference.
+ assert.equal(classifyUnfoundSend(boc,5,{walletSeqno:6,superseded:false,headTime:late}),'unresolved');
+ assert.equal(classifyUnfoundSend(boc,5,{walletSeqno:undefined,superseded:false,headTime:late}),'unresolved');
+ assert.equal(classifyUnfoundSend(boc,5,{walletSeqno:5,superseded:false,headTime:validUntil}),'unresolved');
+});

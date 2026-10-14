@@ -1,0 +1,26 @@
+[Unit]
+Description=Midnight TON bridge committee signer (one per committee member)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bridge-signer
+Group=bridge-signer
+WorkingDirectory=/opt/midnight-ton-bridge
+EnvironmentFile=/etc/midnight-ton-bridge/signer.env
+ExecStart=/usr/bin/node /opt/midnight-ton-bridge/dist/scripts/watch.js signer /etc/midnight-ton-bridge/signer.json
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# The operator directory holds the key, signing database and stop file; the mailbox is
+# where attestations are published.
+ReadWritePaths=/var/lib/bridge-operator /srv/bridge-mailbox
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

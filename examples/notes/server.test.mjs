@@ -7,6 +7,8 @@ test('starter stores notes, rejects invalid input, and fails closed without brid
  assert.equal(createHash('sha256').update(Buffer.from(note.opening,'hex')).update('synthetic acceptance note').digest('hex'),note.commitment,'commitment opens to the note');
  const read=await (await post('/notes/read',{id:note.id})).json();assert.equal(read.text,'synthetic acceptance note');
  assert.equal((await post('/notes',{text:''})).status,400);assert.equal((await post('/bridge/prepare',{})).status,503);
+ // Cross-site form posts cannot carry JSON, so non-JSON bodies are refused.
+ assert.equal((await fetch(base+'/notes',{method:'POST',headers:{'content-type':'text/plain'},body:JSON.stringify({text:'x'})})).status,415);
  }finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
 });
 test('note storage is bounded',async()=>{

@@ -5,7 +5,7 @@ import {network,statePath} from '../src/environment.js';
 import {assertTonTestnet,tonClient,TON_FINALITY_DEPTH} from '../src/ton-network.js';
 import {txSucceeded} from '../src/ton-traces.js';
 import {Journal} from '../src/journal.js';
-import {walletMessageExpired} from '../src/ton-send-guard.js';
+import {classifyUnfoundSend,walletMessageSeqno} from '../src/ton-send-guard.js';
 if(network()!=='preprod')throw new Error('TON testnet only');
 const id=process.argv[2];if(!id)throw new Error('usage: npm run reconcile:ton -- ID|all');
 const j=new Journal(statePath('ton-transactions.sqlite')),client=tonClient();
@@ -17,13 +17,15 @@ try{
  const rows=matching.filter(r=>r.stage!=='prepared');
  const head=await client.getLastBlock();assertTonTestnet(head);const block=head.last.seqno-TON_FINALITY_DEPTH,unresolved:string[]=[];
  for(const row of rows){
-  const payload=JSON.parse(row.payload),wallet=Address.parse(payload.wallet);let last=(await client.getAccountLite(block,wallet)).account.last,found=false,failedSeen=false;
+  const payload=JSON.parse(row.payload),wallet=Address.parse(payload.wallet);let last=(await client.getAccountLite(block,wallet)).account.last,found=false,superseded=false;
   for(let page=0;last&&page<64;page++){
    const txs=await client.getAccountTransactions(wallet,BigInt(last.lt),Buffer.from(last.hash,'base64'));if(!txs.length)break;
    // Only a successful execution settles the send. A failed one (for example an aborted
    // action phase) leaves the sequence unconsumed, so the same message may still execute.
    const match=txs.find(r=>r.tx.inMessage?.info.type==='external-in'&&r.tx.inMessage.body.hash().toString('hex')===row.txid&&txSucceeded(r.tx));
-   failedSeen||=txs.some(r=>r.tx.inMessage?.info.type==='external-in'&&r.tx.inMessage.body.hash().toString('hex')===row.txid);
+   // A different message that executed at this sequence (for example from another state
+   // directory sharing the wallet) means this one can never run.
+   superseded||=txs.some(r=>r.tx.inMessage?.info.type==='external-in'&&txSucceeded(r.tx)&&r.tx.inMessage.body.hash().toString('hex')!==row.txid&&walletMessageSeqno(r.tx.inMessage.body)===payload.seqno);
    if(match){
     const file=statePath(`ton-inclusion-${createHash('sha256').update(row.id).digest('hex')}.json`);
     writeFileSync(file,JSON.stringify({id:row.id,wallet:wallet.toRawString(),bodyHash:row.txid,transactionHash:match.tx.hash().toString('hex'),block:match.block,status:'wallet transaction executed',recipientDelivery:'Verify separately using the jetton trace'},null,2));
@@ -33,15 +35,13 @@ try{
    last={lt:oldest.prevTransactionLt.toString(),hash:Buffer.from(oldest.prevTransactionHash.toString(16).padStart(64,'0'),'hex').toString('base64')};
   }
   if(found)continue;
-  // Absence or a failed execution alone is not rejection. Only a provably expired, unconsumed sequence is.
-  const seqno=await client.runMethod(head.last.seqno,wallet,'seqno'),current=seqno.exitCode===0?Number(seqno.reader.readBigNumber()):-1;
-  if(current>=0&&walletMessageExpired(row.transaction!,payload.seqno,current,head.now)){
-   j.move(row.id,row.stage,'rejected',{error:'expired: wallet sequence unconsumed after valid_until'});console.log(row.id,'expired without execution; safe to prepare a new send');
-  }else if(failedSeen&&current>payload.seqno){
-   // It ran and failed, then another message used its sequence; a later success of this
-   // message would be newer than the failure and would have been found above.
-   j.move(row.id,row.stage,'rejected',{error:'failed execution; sequence since consumed by another message'});console.log(row.id,'failed and superseded; safe to prepare a new send');
-  }else unresolved.push(row.id);
+  // Absence or a failed execution alone is not rejection. The sequence is read at the same
+  // finalized block as the scanned history, so the two cannot disagree.
+  const seqno=await client.runMethod(block,wallet,'seqno'),walletSeqno=seqno.exitCode===0?Number(seqno.reader.readBigNumber()):undefined;
+  const outcome=classifyUnfoundSend(row.transaction!,payload.seqno,{walletSeqno,superseded,headTime:head.now});
+  if(outcome==='expired'){j.move(row.id,row.stage,'rejected',{error:'expired: wallet sequence unconsumed after valid_until'});console.log(row.id,'expired without execution; safe to prepare a new send');}
+  else if(outcome==='superseded'){j.move(row.id,row.stage,'rejected',{error:'superseded: another message executed at this wallet sequence'});console.log(row.id,'superseded by another message at its sequence; safe to prepare a new send');}
+  else unresolved.push(row.id);
  }
  if(unresolved.length)throw new Error(`Exact transaction(s) ${unresolved.join(', ')} not found in scanned history and not provably expired; remain unresolved`);
 }finally{j.close();}

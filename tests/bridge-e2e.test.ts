@@ -1,4 +1,5 @@
 import {test} from 'node:test';
+import {Address} from '@ton/core';
 import assert from 'node:assert/strict';
 import {TonContract,escrowData,releaseDigest,releaseBody,DEPOSIT_ATTACHED_TON} from '../src/ton.js';
 import {observeTonDeposit,verifyEscrowPins} from '../src/escrow.js';
@@ -15,10 +16,15 @@ test('standard route end to end: SDK deposit, observed receipt, Midnight claim, 
  const other=TonContract.create(r.ec,escrowData(r.domain,TON_COMMITTEE,r.attacker.address,r.wc,1000n)).address;
  const circuits=m.circuits as unknown as Record<string,(c:Ctx,...a:unknown[])=>{context:Ctx}>;
  const escrows:[string,string]=[r.escrow.address.toRawString(),other.toRawString()];
- const bridge=new BridgeClient({network:'local',domain:r.domain.toString('hex'),midnightAddress:m.address,escrows,committee:midnightCommittee()},
+ const pin=(master:string)=>({master,walletCodeBoc:r.asset.walletCodeBoc,walletCodeHash:r.asset.walletCodeHash});
+ const bridge=new BridgeClient({network:'local',domain:r.domain.toString('hex'),midnightAddress:m.address,escrows,committee:midnightCommittee(),assets:[pin(r.asset.master),pin(r.attacker.address.toRawString())]},
   {call:async(circuit,args)=>{m.context=circuits[circuit]!(m.context,...args).context;return circuit;}});
  const midnightRecipient='ab'.repeat(32);
- await r.wallet.send(r.user.getSender(),bridge.depositMessage(0,700n,midnightRecipient,r.user.address.toRawString(),1n),DEPOSIT_ATTACHED_TON);
+ // The SDK names the sender's own jetton wallet; sending exactly as told is recorded.
+ const deposit=bridge.depositRequest(0,r.user.address.toRawString(),700n,midnightRecipient,1n);
+ assert(Address.parse(deposit.to).equals(r.wallet.address));assert.equal(deposit.value,DEPOSIT_ATTACHED_TON);
+ await r.user.send({to:Address.parse(deposit.to),value:deposit.value,body:deposit.payload});
+ assert.equal(await r.escrow.getNumber('locked'),700n);
  const pins={escrow:escrows[0],codeHash:r.ec.hash().toString('hex'),configHash:r.configHash};
  const parsed=await verifyEscrowPins(r.client,1,pins);
  assert.equal(parsed.domain,r.domain.toString('hex'));assert.deepEqual(parsed.committee,TON_COMMITTEE.map(k=>k.toString('hex')));
@@ -34,7 +40,7 @@ test('standard route end to end: SDK deposit, observed receipt, Midnight claim, 
  assert.equal(m.state.circulating[0],await r.escrow.getNumber('locked'));
  await assert.rejects(()=>bridge.claim(receipt,[{signer:0,signature:signClaim(digest,k0)},{signer:1,signature:signClaim(digest,k1)}]),/replayed receipt/);
  // Retire on Midnight, then derive the release only from the recorded commitment.
- const nonce='cd'.repeat(32),id=bridge.redemptionId(nonce);await bridge.redeem(nonce,0,300n,r.user.address.toRawString());
+ const {id,nonce}=await bridge.redeem(0,300n,r.user.address.toRawString(),'cd'.repeat(32));assert.equal(id,bridge.redemptionId(nonce));
  const request={id,asset:0 as const,amount:'300',recipient:r.user.address.toRawString(),transactionId:'local'},domain=r.domain.toString('hex'),data=m.state;
  assert.throws(()=>retirementRelease(data,domain,{...request,amount:'301'},escrows),/differs/);
  assert.throws(()=>retirementRelease(data,domain,{...request,recipient:r.attacker.address.toRawString()},escrows),/differs/);

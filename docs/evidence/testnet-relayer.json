@@ -1,0 +1,83 @@
+{
+  "network": "TON-testnet/Midnight-preprod",
+  "midnight": "13a6ceac2964288f51711763d6d9ccb574040675e80a58c21505c7cb5c445c86",
+  "escrow": "0:3de3799aa61e391dddc4efed85eaf1835ae531d5bc6a1aeaeafacdf513b43781",
+  "amount": "500",
+  "steps": [
+    {
+      "id": "relayer-mint:d236f62a7386382ef50fee1ce191f483226cfe3c5c812c99bc814493fe19fb89",
+      "seqno": 36,
+      "bodyHash": "e3800ca635e4ba1e65a565790f6074e16057fdd84ce99abe4f781386573596ec",
+      "status": "wallet-sequence-advanced; verify destination trace"
+    },
+    {
+      "id": "relayer-deposit:2ff4718974e6da9a852bba044e97fbf34e2472df7035cb48e8ef43341aff23de",
+      "seqno": 37,
+      "bodyHash": "d196317ab8ede0c285b81dacf60fd9afe5b9d2215a89bc63beeff63007434e08",
+      "status": "wallet-sequence-advanced; verify destination trace"
+    },
+    {
+      "key": "claim",
+      "receipt": "2ff4718974e6da9a852bba044e97fbf34e2472df7035cb48e8ef43341aff23de",
+      "relayer": [
+        {
+          "time": "2026-10-14T00:10:12.215Z",
+          "role": "relayer",
+          "event": "claim-submitted",
+          "id": "2ff4718974e6da9a852bba044e97fbf34e2472df7035cb48e8ef43341aff23de",
+          "transaction": "0084e6ed2d75561e5b01256b220dfd97e5da1bd7f045b96a3278066a280999c03f",
+          "signers": [
+            0,
+            2
+          ]
+        }
+      ],
+      "milliseconds": 139094
+    },
+    {
+      "key": "redeem",
+      "request": {
+        "id": "319b88ff4699cc75c8587ca9069e22f00232fefd8b79ede60a9a23034ee3d513",
+        "asset": 0,
+        "amount": "500",
+        "recipient": "0:803ef8ee4c28d0fba805079fa6fce28c54272378cb3eaa53390c2810b99c99f1",
+        "transactionId": "00ca8c00ef967e948c47659609add356873e60fc9ff87f68b917d58b49f62b7438"
+      }
+    },
+    {
+      "key": "release",
+      "id": "319b88ff4699cc75c8587ca9069e22f00232fefd8b79ede60a9a23034ee3d513",
+      "relayer": [
+        {
+          "time": "2026-10-14T00:13:00.153Z",
+          "role": "relayer",
+          "event": "release-submitted",
+          "id": "319b88ff4699cc75c8587ca9069e22f00232fefd8b79ede60a9a23034ee3d513",
+          "escrow": "0:3de3799aa61e391dddc4efed85eaf1835ae531d5bc6a1aeaeafacdf513b43781",
+          "result": {
+            "id": "release:0:3de3799aa61e391dddc4efed85eaf1835ae531d5bc6a1aeaeafacdf513b43781:319b88ff4699cc75c8587ca9069e22f00232fefd8b79ede60a9a23034ee3d513",
+            "seqno": 38,
+            "bodyHash": "e3512b910e2223c86c937e13639f808fa046fde723d63bbdabf88233b5b0d850",
+            "status": "wallet-sequence-advanced; verify destination trace"
+          }
+        }
+      ],
+      "delivery": {
+        "block": 91086765,
+        "queryId": "2",
+        "amount": "500",
+        "from": "0:b4914f2d4c4f8843a1b1d4be6a548047a94873b1a20b75fc2e93596f198cfdf6",
+        "to": "0:65c410fce1003e79a0171238e40ce298fc6c49379acd6ac44dda0f15d027b602",
+        "sourceTx": "da03bda049dc1bfd576063c873125125adda2ec13c05db26f6ef6f5d50a40b58",
+        "recipientTx": "f91c91e761768ee28e22dcee62c1b3199a91489be59ab67b06cc06b9e3c32bae",
+        "messageHash": "10ec51767b9de6cc21decc6e0cbe8daef090105b0248a1987d4bd808c9d47a0b"
+      },
+      "milliseconds": 63476
+    }
+  ],
+  "recipient": "2c0e26b956092680ec12abd1729da6198c49960e3c62d70610ca0f2e6bf77598",
+  "sequence": "1",
+  "receipt": "2ff4718974e6da9a852bba044e97fbf34e2472df7035cb48e8ef43341aff23de",
+  "releaseQuery": "2",
+  "complete": true
+}

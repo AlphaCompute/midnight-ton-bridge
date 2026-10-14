@@ -17,11 +17,15 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/bridge-monitor
+StateDirectory=bridge-monitor
+StateDirectoryMode=0700
+# SQLite needs the journals' -shm/-wal files even to read a WAL database; the route check
+# opens the journals read-only and never writes route state.
+ReadWritePaths=/var/lib/bridge
 RuntimeDirectory=bridge-monitor
 RuntimeDirectoryMode=0700
 # Adjust to the actual private route directory. The monitor needs no wallet keys.
-InaccessiblePaths=-/var/lib/bridge/midnight-test-wallet.json -/var/lib/bridge/ton-test-wallet.json -/var/lib/bridge/demo-operators.json -/var/lib/bridge/wallet-sync.json -/var/lib/bridge/testnet-lp-secret.json -/var/lib/bridge/acton-mnemonic.txt -/var/lib/bridge/test-committee.json -/var/lib/bridge/demo-lp-secret.json -/var/lib/bridge/fresh-wallet.json
+InaccessiblePaths=-/var/lib/bridge/midnight-test-wallet.json -/var/lib/bridge/ton-test-wallet.json -/var/lib/bridge/demo-operators.json -/var/lib/bridge/wallet-sync.json -/var/lib/bridge/testnet-lp-secret.json -/var/lib/bridge/acton-mnemonic.txt -/var/lib/bridge/test-committee.json -/var/lib/bridge/demo-lp-secret.json -/var/lib/bridge/fresh-wallet.json -/var/lib/bridge/testnet-redemption-nonce.json -/var/lib/bridge/demo-redemption-nonce.json -/var/lib/bridge/wallet-sync.json.before-bootstrap -/var/lib/bridge/wallets.toml -/var/lib/bridge/operator
 UMask=0077
 
 [Install]

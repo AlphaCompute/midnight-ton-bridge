@@ -49,3 +49,15 @@ test('a process using a Blockfrost token never writes it to stdout or stderr',()
  assert(!(r.stdout+r.stderr).includes('nightpreprodSECRET'));
  assert.match(r.stdout,/project_id=REDACTED/);assert.match(r.stderr,/disconnected from wss:\/\/rpc\.midnight-preprod\.blockfrost\.io\?project_id=REDACTED/);
 });
+
+test('a crash whose error carries a provider URL never prints the token',()=>{
+ const script=`import {midnightEndpoints} from ${JSON.stringify(new URL('../src/midnight-endpoints.ts',import.meta.url).href)};
+const e=midnightEndpoints('preprod',{BLOCKFROST_PROJECT_ID:'nightpreprodSECRETTOKEN'});
+const fail=process.argv[2];
+if(fail==='throw')setTimeout(()=>{throw new Error('disconnected from '+e.nodeWS);});
+else Promise.reject(new TypeError('fetch failed: '+e.indexer));`;
+ for(const mode of ['throw','reject']){
+  const r=spawnSync(process.execPath,['--import','tsx','--input-type=module','-e',script,mode],{encoding:'utf8',timeout:60000});
+  assert.notEqual(r.status,0);assert.match(r.stderr,/project_id=REDACTED/);assert.doesNotMatch(r.stdout+r.stderr,/SECRETTOKEN/);
+ }
+});

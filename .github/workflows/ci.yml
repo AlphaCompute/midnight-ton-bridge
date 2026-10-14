@@ -8,7 +8,44 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        # The lowest supported version (package.json engines) and the documented one.
+        node: ['22.18', '24']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: bash scripts/bootstrap.sh
+      - run: npm run check
+      # The published testnet route must be reproducible from this source.
+      - run: node scripts/build-support.mjs pins
+      - run: npm --prefix examples/notes ci && npm --prefix examples/notes test
+      - run: mkdir -p tmp && npm pack --json --pack-destination tmp > tmp/pack.json && node scripts/release.mjs check-package tmp/pack.json
+      # A clean consumer: the starter installed from the packed SDK, outside the checkout.
+      - name: Starter against the packed SDK
+        run: |
+          consumer="$RUNNER_TEMP/notes-consumer"
+          cp -R examples/notes "$consumer" && rm -rf "$consumer/node_modules" "$consumer/package-lock.json"
+          cd "$consumer" && npm install --no-audit --no-fund "$GITHUB_WORKSPACE"/tmp/*.tgz && npm test
+      # The monitor runtime: it must start, run one probe and exit non-zero without a route.
+      - name: Monitor smoke test
+        run: |
+          set +e
+          BRIDGE_NETWORK=local BRIDGE_MONITOR_DIR="$RUNNER_TEMP/monitor" BRIDGE_MONITOR_PORT=9196 node dist/scripts/monitor.js --once
+          code=$?; set -e
+          test "$code" = 1 && test -f "$RUNNER_TEMP/monitor/status.json" && grep -q '"status"' "$RUNNER_TEMP/monitor/status.json"
+
+  proving-keys:
+    # Builds Midnight proving keys so verifier-pin tests and the route's verifier pins run.
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -18,6 +55,6 @@ jobs:
           node-version: '24'
           cache: npm
       - run: bash scripts/bootstrap.sh
-      - run: npm run check
-      - run: npm --prefix examples/notes ci && npm --prefix examples/notes test
-      - run: mkdir -p tmp && npm pack --json --pack-destination tmp > tmp/pack.json && node scripts/release.mjs check-package tmp/pack.json
+      - run: npm run compile:midnight -- --proof
+      - run: node scripts/build-support.mjs pins
+      - run: npm test

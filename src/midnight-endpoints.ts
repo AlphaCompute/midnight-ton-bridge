@@ -1,3 +1,4 @@
+import {inspect} from 'node:util';
 import type {Network} from './environment.js';
 type MidnightEndpoints={node:string;nodeWS:string;indexer:string;indexerWS:string;proofServer:string};
 const withProjectId=(url:string,token:string)=>`${url}${url.includes('?')?'&':'?'}project_id=${encodeURIComponent(token)}`;
@@ -38,6 +39,10 @@ let redacting=false;
  * so redacting only our own messages would still leak the token. Idempotent. */
 export function redactProcessOutput(){
  if(redacting)return;redacting=true;
+ // Node prints uncaught errors without going through stream.write, and dependencies put the
+ // full endpoint URL in error text (for example a WebSocket disconnect); print them here.
+ const fatal=(error:unknown)=>{process.stderr.write(redactEndpoints(inspect(error))+'\n');process.exit(1);};
+ process.on('uncaughtException',fatal);process.on('unhandledRejection',fatal);
  for(const stream of [process.stdout,process.stderr]){
   const write=stream.write.bind(stream) as (chunk:unknown,...rest:unknown[])=>boolean;
   // Bytes pass through unchanged unless they hold a token; latin1 round-trips any byte.

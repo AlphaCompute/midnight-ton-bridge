@@ -4,6 +4,8 @@ import {beginCell,external,storeMessage,type MessageRelaxed} from '@ton/core';
 import {WalletContractV4} from '@ton/ton';
 import {keyPairFromSeed} from '@ton/crypto';
 import {acquireLock,readSecret,statePath,network} from './environment.js';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {Journal} from './journal.js';
 /** Extra endpoints that receive the same signed message (toncenter `sendBoc` shape).
  * Relaying identical bytes everywhere is safe: the wallet sequence admits it once. */
@@ -29,7 +31,11 @@ export function openTon(keyFile=statePath('ton-test-wallet.json')){
  const pair=keyPairFromSeed(Buffer.from(readSecret<{seed:string}>(keyFile).seed,'hex'));
  const wallet=WalletContractV4.create({workchain:0,publicKey:pair.publicKey}),client=tonClient(),opened=client.open(wallet);
  return {client,wallet,opened,send:async(id:string,messages:MessageRelaxed[],options:{afterConfirmed?:boolean}={})=>{
-  const unlock=acquireLock(statePath('ton-wallet.lock'));let journal:Journal|undefined;
+  // One send at a time per state directory and, across state directories (routes) sharing a
+  // funded wallet, per wallet: otherwise two routes could sign the same sequence number.
+  const walletLock=acquireLock(join(process.env.BRIDGE_LOCK_DIR??tmpdir(),`midnight-ton-bridge-wallet-${wallet.address.hash.toString('hex')}.lock`),{state:statePath('.')},{exitOnSignal:true});
+  let stateLock:(()=>void)|undefined;try{stateLock=acquireLock(statePath('ton-wallet.lock'),{},{exitOnSignal:true});}catch(error){walletLock();throw error;}
+  const unlock=()=>{try{stateLock!();}finally{walletLock();}};let journal:Journal|undefined;
   try{
    journal=new Journal(statePath('ton-transactions.sqlite'));
    assertTonTestnet(await client.getLastBlock());

@@ -5,11 +5,12 @@ import {Address} from '@ton/core';
 import {ContractState,ContractOperation,ContractMaintenanceAuthority} from '@midnight-ntwrk/compact-runtime';
 import {pureCircuits} from '../build/midnight/contract/index.js';
 import {circuitNames} from '../src/midnight.js';
-import {redemptionCommitment,statePins,verifyRedemption} from '../src/redemptions.js';
+import {redemptionCommitment,retirementRelease,statePins,verifyRedemption} from '../src/redemptions.js';
 import {releaseDigest} from '../src/ton.js';
 import {deployMidnight,claimQuorum} from './helpers/midnight.js';
 
 const holder={bytes:Buffer.alloc(32,4)};
+const escrows:[string,string]=[new Address(0,Buffer.alloc(32,1)).toRawString(),new Address(0,Buffer.alloc(32,2)).toRawString()];
 
 test('retirement records a commitment under a hashed ID; replays and front-running cannot touch it',()=>{
  const m=claimQuorum(deployMidnight(),Buffer.alloc(32,10),0n,10000n,holder),to=new Address(0,Buffer.alloc(32,12));
@@ -27,6 +28,17 @@ test('retirement records a commitment under a hashed ID; replays and front-runni
  assert.equal(m.state.circulating[0],9850n);
 });
 
+test('an asset 1 retirement releases from the asset 1 escrow',()=>{
+ const domain=Buffer.alloc(32,6),m=claimQuorum(deployMidnight({domain}),Buffer.alloc(32,3),1n,500n,holder);
+ const nonce=Buffer.alloc(32,9),id=Buffer.from(pureCircuits.redemptionId(nonce)),to=new Address(0,Buffer.alloc(32,12));
+ m.context=m.circuits.redeem(m.context,nonce,1n,100n,to.hash).context;
+ const request={id:id.toString('hex'),asset:1 as const,amount:'100',recipient:to.toRawString(),transactionId:'local'};
+ const digest=retirementRelease(m.state,domain.toString('hex'),request,escrows);
+ assert(digest.equals(releaseDigest(Address.parse(escrows[1]),domain,id,100n,to)));
+ assert(!digest.equals(releaseDigest(Address.parse(escrows[0]),domain,id,100n,to)));
+ assert.throws(()=>retirementRelease(m.state,domain.toString('hex'),{...request,asset:0},escrows),/differs/);
+});
+
 const keyed=circuitNames.every(n=>existsSync(`build/midnight/keys/${n}.verifier`));
 test('signer verification pins verifier keys, maintenance authority and domain before using a retirement',{skip:keyed?false:'requires npm run compile:midnight -- --proof'},()=>{
  const domain=Buffer.alloc(32,5),m=claimQuorum(deployMidnight({domain}),Buffer.alloc(32,3),0n,500n,holder);
@@ -39,10 +51,13 @@ test('signer verification pins verifier keys, maintenance authority and domain b
   for(const n of circuitNames){const op=new ContractOperation();op.verifierKey=readFileSync(`build/midnight/keys/${swap===n?'claim':n}.verifier`);s.setOperation(n,op);}
   s.maintenanceAuthority=authority;return s;
  };
- const state=build(),pins=statePins(state),escrows:[string,string]=[new Address(0,Buffer.alloc(32,1)).toRawString(),new Address(0,Buffer.alloc(32,2)).toRawString()];
+ const state=build(),pins=statePins(state);
  const request={id:id.toString('hex'),asset:0 as const,amount:'100',recipient:to.toRawString(),transactionId:'local'};
  assert(verifyRedemption(state,pins,request,escrows).equals(releaseDigest(Address.parse(escrows[0]),domain,id,100n,to)));
  assert.throws(()=>verifyRedemption(build(undefined,'redeem'),pins,request,escrows),/verifier/);
+ // Every pinned verifier matches, but an extra operation is an unpinned way to change state.
+ const extra=build();{const op=new ContractOperation();op.verifierKey=readFileSync('build/midnight/keys/claim.verifier');extra.setOperation('mint',op);}
+ assert.throws(()=>verifyRedemption(extra,pins,request,escrows),/verifier set/);
  assert.throws(()=>verifyRedemption(build(new ContractMaintenanceAuthority([],1,1n)),pins,request,escrows),/maintenance/);
  assert.throws(()=>verifyRedemption(state,{...pins,domain:'00'.repeat(32)},request,escrows),/domain/);
  assert.throws(()=>verifyRedemption(state,{...pins,maintenanceHash:'00'.repeat(32)},request,escrows),/maintenance/);

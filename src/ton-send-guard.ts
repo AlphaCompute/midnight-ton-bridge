@@ -37,3 +37,17 @@ export function walletMessageExpired(boc:string,journalSeqno:number,walletSeqno:
  if(signedSeqno!==journalSeqno)throw Error('Journal sequence does not match the signed wallet message');
  return walletSeqno===journalSeqno&&blockTime>validUntil+WALLET_EXPIRY_MARGIN;
 }
+/** Sequence number a signed v4 wallet message body commits to (signature, wallet id and
+ * valid_until precede it). A successful message at that sequence means no other can run. */
+export function walletMessageSeqno(body:Cell){const s=body.beginParse();if(s.remainingBits<512+96)return undefined;s.skip(512+64);return s.loadUint(32);}
+/** Outcome for a journaled wallet send that the finalized history does not show executed.
+ * `walletSeqno` must be read at the same finalized block as the scanned history, and
+ * `superseded` means that history holds a different successful message at this sequence.
+ * `headTime` (the RPC head's time) may run ahead of that block by less than
+ * WALLET_EXPIRY_MARGIN, which keeps the expiry proof sound. */
+export function classifyUnfoundSend(boc:string,journalSeqno:number,{walletSeqno,superseded,headTime}:{walletSeqno:number|undefined;superseded:boolean;headTime:number}):'expired'|'superseded'|'unresolved'{
+ if(superseded)return 'superseded';
+ if(walletSeqno!==undefined&&walletMessageExpired(boc,journalSeqno,walletSeqno,headTime))return 'expired';
+ return 'unresolved';
+}
+

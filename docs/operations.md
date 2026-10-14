@@ -8,7 +8,7 @@ Deployment commands are in the [deployment guide](deployment.md). This document 
 
 The new Midnight deployment has no usable maintenance authority. Keep its candidate, intent and confirmed record: these identify an interrupted deployment. Old development deployments with different verifiers/authorities remain separate routes. Never replace a deployed verifier file locally and assume the chain changed. Archive each route's deployment and transaction records, including routes still holding collateral.
 
-Generate one operator per independent custodian with `npm run operator -- keygen PRIVATE_DIRECTORY`. Distribute only `public.json`. The three centrally held `demo-operators.json` keys are for disposable testnet demonstrations only. Never copy demonstration secrets to production.
+Generate one operator per independent custodian with `npm run operator -- keygen PRIVATE_DIRECTORY`. Distribute only `public.json`, which holds `ton` (Ed25519 hex) and `midnight` (`{x,y}`). Assemble the committee files in signer order 0, 1, 2: `ton-public-committee.json` is a JSON array of the three `ton` strings, and `midnight-public-committee.json` is a JSON array of the three `midnight` objects. Both deployments and every signer config must use the same order. The three centrally held `demo-operators.json` keys are for disposable testnet demonstrations only. Never copy demonstration secrets to production.
 
 ## Signing policies
 
@@ -17,7 +17,7 @@ Deposit signer configuration:
 ```json
 {
   "rpc": "https://testnet-v4.tonhubapi.com",
-  "source": {"escrow":"0:...", "asset":0, "codeHash":"...", "configHash":"...", "confirmationDepth":3},
+  "source": {"escrow":"0:...", "asset":0, "master":"0:...", "codeHash":"...", "configHash":"...", "confirmationDepth":3},
   "bridge": {"network":"preprod", "domain":"...", "midnightAddress":"...", "escrows":["0:...","0:..."], "committee":[{"x":"...","y":"..."},{"x":"...","y":"..."},{"x":"...","y":"..."}]},
   "signer":0,
   "keyFile":"/private/operator/secret.json",
@@ -25,9 +25,9 @@ Deposit signer configuration:
 }
 ```
 
-Use reviewed real public values, not the placeholders. Each signer independently runs `npm run operator -- attest-deposit CONFIG SEQUENCE`. It checks a recent TON head, reads an older snapshot, pins escrow code/config, verifies its own committee key, reserves quota and signs the circuit digest. Keep output attestations as public evidence, without keys. Policies are in raw base units; configure them for the selected asset/route.
+Use reviewed real public values, not the placeholders. Each signer independently runs `npm run operator -- attest-deposit CONFIG SEQUENCE`. It checks a recent TON head, reads an older snapshot, pins escrow code/config, confirms on chain that the escrow belongs to this route's domain and holds the pinned token `master`, verifies its own committee key, reserves quota once per TON deposit and signs the circuit digest. Keep output attestations as public evidence, without keys. Policies are in raw base units; configure them for the selected asset/route.
 
-Reverse signer configuration contains `network`, `indexer`, `indexerWS`, Midnight `address`, deployment `pins`, the three TON public-key hex strings in `committee`, `signer`, `keyFile` and the same `policy` object, plus two `escrows` entries, one per asset in order, each `{"escrow","codeHash","configHash","master"}` copied from the TON deployment plan. Optional `node` (Midnight node RPC) and `tonRpc` default to the network's endpoints. Run `npm run operator -- attest-redemption CONFIG REQUEST_JSON`. Request fields are `id`, `asset`, decimal `amount`, basechain `recipient` and finalized Midnight `transactionId`. `id` is the public retirement ID `bridge.redemptionId(nonce)` (the `redeem` call itself returns only its transaction ID); never share the private nonce. Before signing, the signer checks that the transaction succeeded, that the node reports its block as finalized and canonical, the contract state at that block (verifier, authority and domain pins, exact retirement commitment), and that both escrows run pinned code for this route's domain, committee and token masters.
+Reverse signer configuration contains `network`, Midnight `address`, deployment `pins`, the three TON public-key hex strings in `committee`, `signer`, `keyFile` and the same `policy` object, plus two `escrows` entries, one per asset in order, each `{"escrow","codeHash","configHash","master"}` copied from the TON deployment plan. Optional `indexer`/`indexerWS`, `node` (Midnight node RPC) and `tonRpc` default to the network's endpoints. Run `npm run operator -- attest-redemption CONFIG REQUEST_JSON`. Request fields are `id`, `asset`, decimal `amount`, basechain `recipient` and finalized Midnight `transactionId`. `id` is the public retirement ID `bridge.redemptionId(nonce)` (the `redeem` call itself returns only its transaction ID); never share the private nonce. Before signing, the signer checks that the transaction succeeded, that the node reports its block as finalized and canonical, the contract state at that block (verifier, authority and domain pins, exact retirement commitment), and that both escrows run pinned code for this route's domain, committee and token masters.
 
 Create each configured stop file to halt new signing. Quota is reserved before signature exposure and identical retries are idempotent. A different digest for the same receipt is refused. Do not erase signing history to bypass a limit or conflict. Already issued signatures remain usable.
 
@@ -48,6 +48,40 @@ For TON, preserve the recorded wallet, sequence, body hash and signed BOC. Find 
 `openTon().send` serializes sends with `ton-wallet.lock`. It relays the same signed message through the reading RPC and every `TON_BROADCAST_URLS` endpoint (toncenter by default), because one RPC can serve reads while silently dropping sends. Each endpoint must first report the pinned TON testnet zero state from its `getMasterchainInfo`, since a wallet signature does not commit to a network and a mainnet endpoint could execute it for a reused key; the wallet sequence admits the message once, and the send counts as submitted if any endpoint accepts it. A stale lock after a crash must be removed only after verifying that no process owns the wallet and reconciling its journal. A fresh wallet sequence is not permission to duplicate an already executed transfer.
 
 Run `npm run check:route` after settled operations and after reconciling journals. It compares backing and circulation, checks code/configuration pins and reports unreconciled `prepared`, `sending` or `submitted` journal entries (`rejected` entries are settled). Differences can represent in-flight deposits/refunds or a real accounting problem; do not repair them with unverified claims.
+
+## Automated signing and relay
+
+`npm run watch` runs the same checks as `operator` and `relay` continuously, so deposits and redemptions move without someone running a command per transfer. The pieces exchange signatures through a shared **mailbox** directory:
+
+- `claims/<receipt>/<signer>.json`: deposit attestations, one file per committee slot.
+- `releases/<redemption>/<signer>.json`: release attestations.
+- `requests/<redemption>.json`: redemption requests waiting for the committee.
+
+Mailbox contents are public and untrusted. Signers sign only what they observe on chain themselves, and the relayer re-verifies every signature and agreement before it submits anything. A bad file can delay a transfer but cannot redirect one. Files are written atomically and never replaced. Make the directory writable by the signers (each only for its own slot in practice) and readable by the relayer. A synced folder or object-store mount works as well as a local disk.
+
+**Signer** (one per committee member, on that member's own host): `npm run watch -- signer SIGNER_CONFIG`. The config names the mailbox, the poll interval and this member's existing operator configs:
+
+```json
+{"mailbox":"/srv/bridge-mailbox","intervalMs":30000,
+ "deposits":["/private/operator/deposit-asset-0.json","/private/operator/deposit-asset-1.json"],
+ "redemption":"/private/operator/redemption.json"}
+```
+
+Each `deposits` entry is an `attest-deposit` config and `redemption` is an `attest-redemption` config, all for the same committee slot. Each pass reads `depositCount` at a finalized snapshot and signs every deposit that this member has not published yet and Midnight has not already claimed. It also signs every queued redemption request whose release the escrow has not accepted. Signing policy, quotas and the stop file apply exactly as for manual signing: a refused item is logged and retried on later passes, and other items continue. Optional `indexer`/`indexerWS` override the Midnight indexer used for the claimed check. If that check fails, the signer signs anyway, which spends quota but never funds.
+
+**Relayer** (anyone with funded wallets): `npm run watch -- relayer RELAYER_CONFIG` with `BRIDGE_NETWORK` matching the bridge config:
+
+```json
+{"mailbox":"/srv/bridge-mailbox","intervalMs":30000,
+ "bridge":{"network":"preprod","domain":"...","midnightAddress":"...","escrows":["0:...","0:..."],"committee":[{"x":"...","y":"..."},{"x":"...","y":"..."},{"x":"...","y":"..."}]},
+ "ton":{"network":"ton-testnet","domain":"...","escrows":["0:...","0:..."],"committee":["...","...","..."],"walletKeyFile":"/private/state/ton-test-wallet.json"}}
+```
+
+`bridge` is the claim relay config and `ton` the release relay config (omit `ton` to relay claims only). Each pass submits the claim for every receipt with two valid, agreeing signatures that Midnight has not claimed. It sends the release for every redemption with a quorum whose escrow `releaseState` is still 0 at both the latest and the finalized block. Submissions go through the same wallet locks and journals as `relay --send`. After any ambiguous send, every later send is refused until you reconcile (`reconcile:midnight` / `reconcile:ton`). The relayer logs that refusal on each pass and never works around it. The relayer pays Midnight claim fees (DUST, plus a proof server at `MIDNIGHT_PROOF_SERVER`) and 0.2 TON per release, so keep those wallets funded and separate from reserves.
+
+**Users** queue a redemption after `redeem` finalizes with `npm run watch -- request MAILBOX REQUEST_JSON`, where the request is the `request` object `BridgeClient.redeem` returns. A queued request cannot be replaced by a different one for the same redemption ID.
+
+Add `--once` to either role to run a single pass and exit, for cron or for testing. Both roles log one JSON line per event to stdout and hold a lock (`signer-watch.lock` next to the signing database, `relayer.lock` in the state directory) so only one instance runs. Templates are in [`infrastructure/relay`](../infrastructure/relay). Run the signer as its own service account on each member's host, and keep the monitor running alongside the relayer: automation moves funds faster, so unreconciled journals and accounting differences need to be noticed quickly.
 
 ## Refunds
 
@@ -129,7 +163,7 @@ Build with `npm run build`, set `BRIDGE_NETWORK=preprod` and `BRIDGE_STATE_DIR` 
 - `GET http://127.0.0.1:9095/healthz`: HTTP 200 only while a fresh check is settled; otherwise HTTP 503. Stale evidence never remains healthy indefinitely.
 - `GET http://127.0.0.1:9095/metrics`: Prometheus gauges for health, consecutive failures and last check/success times. It contains no keys or signed bytes.
 
-Default interval is 60 seconds after each completed check, timeout 45 seconds, alert-state threshold three consecutive failures, and stale limit 180 seconds. A single inconsistent check changes health to degraded immediately; subsequent failures raise the alert state. State transitions are emitted as JSON on stdout. The supplied Prometheus rules include unhealthy, unavailable and stale checks. Wire them to the appointed operator's Alertmanager receiver; this code does not send emails or messages, and no external alert destination has been configured.
+Default interval is 60 seconds after each completed check, timeout 45 seconds, alert-state threshold three consecutive failures, and stale limit 180 seconds. The stale limit is three intervals (`3 × BRIDGE_MONITOR_INTERVAL_MS`); if you change the interval, change the `180` in the stale-check rule of `bridge-alerts.yml` to match. A single inconsistent check changes health to degraded immediately; subsequent failures raise the alert state. State transitions are emitted as JSON on stdout. The supplied Prometheus rules include unhealthy, unavailable and stale checks. Wire them to the appointed operator's Alertmanager receiver; this code does not send emails or messages, and no external alert destination has been configured.
 
 `npm run monitor -- --once` performs one check and exits with an appropriate status. `BRIDGE_MONITOR_DIR` holds the durable status file; `BRIDGE_MONITOR_LOCK_DIR` can place the process lock in a separate runtime folder. Run only one monitor per state directory/port. Graceful SIGTERM removes the lock. After an abrupt manual process kill, inspect the lock's PID and verify no monitor remains before removing a stale lock. The supplied systemd service uses a runtime directory that systemd clears between service lifetimes, while durable status remains under `/var/lib/bridge-monitor`.
 
@@ -139,7 +173,7 @@ A healthy sample checks code/configuration pins, immutable Midnight authority, b
 
 Templates are in [`infrastructure/monitor`](../infrastructure/monitor). Build the exact reviewed source under `/opt/midnight-ton-bridge`, create the `bridge` service account and state paths, review/copy the environment and systemd unit, then enable it through the operator's normal service-management process. Verify the Node executable path and use Node 24 (22.18+ minimum). Configure Prometheus to load the supplied scrape and alert rule files.
 
-The route check does not open a wallet or read wallet secrets. It needs public route deployment JSON and read access to the **live** transaction journals and SQLite WAL/SHM files. Do not substitute stale journal snapshots. Restrict seed, committee, mnemonic, wallet-sync and LP-secret paths; the template masks known secret filenames and should be adapted to the deployment's complete key layout. Keep the monitor state directory writable and the bridge source read-only.
+The route check does not open a wallet or read wallet secrets. It needs public route deployment JSON and read access to the **live** transaction journals and SQLite WAL/SHM files. Journals are owner-only (mode 600), so run the service as the user that owns the route state directory (the template's `bridge`). SQLite must create the `-shm` file to read an idle WAL journal, so the unit allows writes to `/var/lib/bridge` while the check itself opens journals read-only. Do not substitute stale journal snapshots. Restrict seed, committee, mnemonic, wallet-sync and LP-secret paths; the template masks known secret filenames and should be adapted to the deployment's complete key layout. Keep the monitor state directory writable and the bridge source read-only.
 
 ## Liquidity and incidents
 
@@ -147,4 +181,4 @@ Use testnet-issued tokens for test liquidity. Lock both assets on TON, claim rep
 
 On inconsistency: stop new signatures, preserve logs/snapshots, compare independent chain views, account for every in-flight transfer, and communicate through the appointed operator. On key compromise, stop the remaining signer(s); already issued signatures cannot be revoked. The fixed committee and immutable Midnight contract require a new backed route for rotation. Do not abandon collateral when migrating or shutting down.
 
-The source handover does not imply a hosted watcher, alert subscription, real liquidity contribution or indefinite service. Those require an assigned operator and a written service scope.
+The source handover does not imply a hosted signer, relayer or watcher, alert subscription, real liquidity contribution or indefinite service. Those require an assigned operator and a written service scope.

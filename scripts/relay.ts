@@ -4,7 +4,7 @@ import {BridgeClient,type BridgeConfig,type ClaimAttestation} from '../src/sdk.j
 import {type DepositReceipt,type EscrowPins,verifyEscrowPins} from '../src/escrow.js';
 import {type RedemptionRequest} from '../src/redemptions.js';
 import {Address,toNano,internal,type Cell} from '@ton/core';
-import {signVerify} from '@ton/crypto';
+import {canonicalReceipt,tonQuorum,type TonAttestation} from '../src/quorum.js';
 import {releaseBody,releaseDigest} from '../src/ton.js';
 import {failureBody,failureDigest,unrecordedBody,unrecordedDigest} from '../src/jettons.js';
 import {finalizedBlock,tonClient} from '../src/ton-network.js';
@@ -15,14 +15,6 @@ import {flag} from './lib/util.js';
 const [command,path,aPath,bPath]=process.argv.slice(2);
 if(!path||!aPath||!bPath)throw new Error('usage: npm run relay -- claim|release|recovery CONFIG ATTESTATION_A ATTESTATION_B [--send]');
 const send=flag('--send');
-type TonAttestation={signer:number;signature:string};
-/** Two attestations from distinct committee slots, ascending, each signing `digest`. */
-function tonQuorum<T extends TonAttestation>(entries:T[],committee:string[],digest:Buffer){
- const [a,b]=[...entries].sort((x,y)=>x.signer-y.signer);
- if(!a||!b||!Number.isInteger(a.signer)||!Number.isInteger(b.signer)||a.signer<0||a.signer>=b.signer||b.signer>2)throw new Error('invalid quorum');
- for(const e of [a,b])if(!signVerify(digest,Buffer.from(e.signature,'hex'),Buffer.from(committee[e.signer]??'','hex')))throw new Error('invalid signature');
- return {a,b,sigA:Buffer.from(a.signature,'hex'),sigB:Buffer.from(b.signature,'hex')};
-}
 /** Prints the prepared escrow message, or with --send submits it from the journaled wallet. */
 async function relayToEscrow(escrow:Address,body:Cell,id:string,walletKeyFile?:string,options:{afterConfirmed?:boolean}={}){
  if(!send){console.log(JSON.stringify({network:'ton-testnet',to:escrow.toRawString(),value:toNano('0.2').toString(),body:body.toBoc().toString('base64')}));return;}
@@ -35,8 +27,7 @@ async function relayToEscrow(escrow:Address,body:Cell,id:string,walletKeyFile?:s
 if(command==='claim'){
  const config=readJson<BridgeConfig>(path);config.committee=config.committee.map(p=>({x:BigInt(p.x),y:BigInt(p.y)})) as BridgeConfig['committee'];
  const entries=[readJson(aPath),readJson(bPath)] as {receipt:DepositReceipt;attestation:ClaimAttestation}[];
- const canonical=(r:DepositReceipt)=>JSON.stringify([r.id,r.network,Address.parse(r.escrow).toRawString(),r.sequence,r.asset,r.amount,r.recipient]);
- if(canonical(entries[0]!.receipt)!==canonical(entries[1]!.receipt))throw new Error('observers did not agree on the same transfer');
+ if(canonicalReceipt(entries[0]!.receipt)!==canonicalReceipt(entries[1]!.receipt))throw new Error('observers did not agree on the same transfer');
  for(const {attestation:a} of entries){a.signature.response=BigInt(a.signature.response);a.signature.announcement={x:BigInt(a.signature.announcement.x),y:BigInt(a.signature.announcement.y)};}
  if(!send){
   const bridge=new BridgeClient(config,{call:async(circuit,args)=>toJson({network:config.network,address:config.midnightAddress,circuit,args},0)});
@@ -78,10 +69,10 @@ if(command==='claim'){
  if(x.kind==='unrecorded'){
   const from=Address.parse(x.from!),amount=BigInt(x.amount!);
   const q=tonQuorum(entries,c.committee,unrecordedDigest(escrow,domain,evidence,amount,from));
-  await relayToEscrow(escrow,unrecordedBody(evidence,amount,from,q.a.signer,q.b.signer,q.sigA,q.sigB),`unrecorded:${escrow.toRawString()}:${x.evidence}`,c.walletKeyFile);
+  await relayToEscrow(escrow,unrecordedBody(evidence,amount,from,q.a.signer,q.b.signer,q.sigA,q.sigB),`unrecorded:${escrow.toRawString()}:${x.evidence.toLowerCase()}`,c.walletKeyFile);
  }else{
   const result=await client.runMethod(block,escrow,'pending',[{type:'int',value:BigInt(x.query!)}]);if(result.exitCode!==0)throw new Error('No pending instruction');
   const q=tonQuorum(entries,c.committee,failureDigest(escrow,domain,BigInt(x.query!),evidence,result.reader.readCell()));
-  await relayToEscrow(escrow,failureBody(BigInt(x.query!),evidence,q.a.signer,q.b.signer,q.sigA,q.sigB),`restore:${escrow.toRawString()}:${x.query}`,c.walletKeyFile);
+  await relayToEscrow(escrow,failureBody(BigInt(x.query!),evidence,q.a.signer,q.b.signer,q.sigA,q.sigB),`restore:${escrow.toRawString()}:${BigInt(x.query!)}`,c.walletKeyFile);
  }
 }else throw new Error('unknown relay command');

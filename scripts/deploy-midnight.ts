@@ -33,7 +33,8 @@ if(existsSync(intentPath)){
  const intent=readJson<{domain:string;network:string;priorJournal?:string[]}>(intentPath);
  if(intent.domain!==domain.toString('hex')||intent.network!==network())throw new Error('Existing deployment intent is for a different route; reconcile instead');
  const prior=new Set(intent.priorJournal??[]),added=journalIds().filter(r=>!prior.has(r.id));
- if(added.some(r=>r.payload!=='DUST registration'||r.stage!=='confirmed'))throw new Error('This attempt journaled a transaction; reconcile it before retrying');
+ // Proven rejections never executed; anything else this attempt journaled must be reconciled.
+ if(added.some(r=>r.stage!=='rejected'&&!(r.payload==='DUST registration'&&r.stage==='confirmed')))throw new Error('This attempt journaled a transaction that may have executed; reconcile it before retrying');
  const candidate=statePath('midnight-deployment-candidate.json');
  if(existsSync(candidate)){if(!intent.priorJournal)throw new Error('Existing deployment may have been submitted; reconcile instead');renameSync(candidate,`${candidate}.unsubmitted-${Date.now()}`);}
 }else writeFileSync(intentPath,JSON.stringify({domain:domain.toString('hex'),network:network(),started:new Date().toISOString(),priorJournal:journalIds().map(r=>r.id)}),{mode:0o600,flag:'wx'});

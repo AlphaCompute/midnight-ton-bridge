@@ -1,5 +1,5 @@
 import {Address} from '@ton/core';
-import {MidnightBech32m,UnshieldedAddress} from '@midnight-ntwrk/wallet-sdk-address-format';
+import {parseMidnightRecipient as parseRecipient} from '../src/midnight-address.js';
 import {positiveUint64} from '../src/ton.js';
 import type {Deployment,RouteAsset} from './readers.js';
 
@@ -13,14 +13,9 @@ export function parseUnits(value:unknown,decimals:number):bigint{
  const [whole,frac='']=value.trim().split('.');if(frac.length>decimals)throw invalid(`At most ${decimals} decimal places`);
  try{return positiveUint64(BigInt(whole!)*10n**BigInt(decimals)+BigInt(frac.padEnd(decimals,'0')||'0'));}catch(e){throw invalid((e as Error).message);}
 }
-/** Accepts an unshielded preprod bech32m address or the raw 32-byte hex form. */
+/** Accepts an unshielded preprod bech32m address or the raw 32-byte hex form; refuses zero. */
 export function parseMidnightRecipient(value:unknown):Buffer{
- if(typeof value!=='string')throw invalid('Midnight recipient required');const v=value.trim();
- if(/^[a-f0-9]{64}$/i.test(v))return Buffer.from(v,'hex');
- let parsed:MidnightBech32m;try{parsed=MidnightBech32m.parse(v);}catch{throw invalid('Midnight recipient must be an mn_addr_preprod… address or 32-byte hex');}
- if(parsed.type!=='addr')throw invalid('Use an unshielded Midnight address (mn_addr…), not a shielded or dust address');
- if(parsed.network!=='preprod')throw invalid('This route only accepts Midnight preprod addresses');
- return UnshieldedAddress.codec.decode('preprod',parsed).data;
+ try{return parseRecipient(value,'preprod');}catch(e){throw invalid((e as Error).message);}
 }
 export function parseTonAddress(value:unknown):Address{
  if(typeof value!=='string'||!value.trim())throw invalid('TON address required');

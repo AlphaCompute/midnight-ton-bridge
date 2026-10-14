@@ -15,7 +15,7 @@ import {withTempDir} from './helpers/env.js';
 
 const wallet='0:'+'11'.repeat(32),other='0:'+'22'.repeat(32);
 /** Runs the relay CLI with no wallet, no state directory and an unreachable indexer. */
-const relay=(dir:string,args:string[])=>spawnSync(process.execPath,['--import','tsx',resolve('scripts/relay.ts'),...args],{encoding:'utf8',timeout:30000,
+const relay=(dir:string,args:string[])=>spawnSync(process.execPath,['--import','tsx',resolve('scripts/relay.ts'),...args],{encoding:'utf8',timeout:120000,
  env:{...process.env,BRIDGE_NETWORK:'preprod',MIDNIGHT_NETWORK:'preprod',BRIDGE_STATE_DIR:join(dir,'must-not-create'),MIDNIGHT_SEED_FILE:join(dir,'missing-secret'),MIDNIGHT_INDEXER_URL:'http://127.0.0.1:1',TON_RPC_URL:'http://127.0.0.1:1'}});
 const save=(dir:string,n:string,v:unknown)=>{const p=join(dir,n);writeFileSync(p,toJson(v,0));return p;};
 

@@ -17,7 +17,7 @@ npm run compile:midnight -- --proof
 npm run release -- manifest
 ```
 
-Proof-key generation takes several minutes and substantial memory. All five `.prover` and `.verifier` files under `build/midnight/keys/` must be nonempty. Build/test reject stale Compact bindings. Do not modify Compact source while generating keys: recompilation replaces its artifacts. Review [`docs/evidence/build-manifest.json`](evidence/build-manifest.json) after every release build. Packaging the handoff is described in [release](release.md#build-the-private-handoff).
+Proving-key generation takes from a few minutes to about half an hour, depending on hardware, and several GB of memory. It writes a `.prover` and a `.verifier` file per circuit (ten files) under `build/midnight/keys/`, plus the source fingerprint they were built from. Build, test and every live Midnight call reject stale bindings or keys; recompiling changed source deletes the old keys. Do not modify Compact source while generating keys: recompilation replaces its artifacts. Review [`docs/evidence/build-manifest.json`](evidence/build-manifest.json) after every release build. Packaging the handoff is described in [release](release.md#build-the-private-handoff).
 
 ## Deploy to local test networks
 
@@ -30,7 +30,7 @@ npm run demo:local
 npm run verify:local
 ```
 
-Compose binds only loopback ports 19944 (node), 18088 (indexer), 16300 (proof server). On older Docker Desktop API negotiations, prepend `DOCKER_API_VERSION=1.44`. Only the node service has a healthcheck: `--wait` waits for the node to be healthy and for the indexer and proof server containers to start, not for them to be ready. If `deploy:midnight` fails against a still-starting indexer or proof server, wait briefly and retry. On local, `deploy:midnight` draws a random route domain when `BRIDGE_DOMAIN` is unset. `verify:local` checks exact outcomes and writes [`docs/evidence/local-proof.json`](evidence/local-proof.json); it does not merely check that services are healthy. Preserve containers if you need their chain history: `docker compose stop`. Recreating the development node may create a fresh chain, invalidating old deployment records.
+Compose binds only loopback ports 19944 (node), 18088 (indexer), 16300 (proof server). On older Docker Desktop API negotiations, prepend `DOCKER_API_VERSION=1.44`. Only the node service has a healthcheck: `--wait` waits for the node to be healthy and for the indexer and proof server containers to start, not for them to be ready. If `deploy:midnight` fails against a still-starting indexer or proof server, wait briefly and retry. On local, `deploy:midnight` draws a random route domain when `BRIDGE_DOMAIN` is unset. `verify:local` checks exact outcomes; add `-- --publish` to record them in [`docs/evidence/local-proof.json`](evidence/local-proof.json). It does not merely check that services are healthy. Preserve containers if you need their chain history: `docker compose stop`. Recreating the development node may create a fresh chain, invalidating old deployment records.
 
 Local claims are deliberately synthetic. TON execution is covered separately by the combined TVM/Compact test. The local seed is public development infrastructure and must never be used on another network.
 
@@ -54,16 +54,14 @@ npm run wallet:sync -- --initialize-only
 npm run bootstrap:wallet -- --new-unused-wallet
 ```
 
-The helper checks local usage history, active locks, on-chain DUST generations and a recent fresh-wallet marker. Those checks do not replace the requirement that the wallet be newly generated and unused. It must not be used to restore an existing wallet's asset history. If its consistency checks fail, keep the original checkpoint and use ordinary `npm run wallet:sync`; never skip root checks.
+The helper checks local usage history, active locks, on-chain DUST generations and a fresh-wallet marker written by `prepare:testnet`, which expires after 6 hours (after that, use ordinary `npm run wallet:sync`). Those checks do not replace the requirement that the wallet be newly generated and unused. It must not be used to restore an existing wallet's asset history. If its consistency checks fail, keep the original checkpoint and use ordinary `npm run wallet:sync`; never skip root checks.
 
 State is stored in `.state/preprod/`. `prepare:testnet` creates owner-only seed files and a centrally held demonstration committee. This arrangement is for testnet validation; it is not independent custody. Back up this directory securely, never commit or distribute it. Run only one wallet process per state directory.
 
 1. Fund the printed TON address with about 3 test TON. Install the official [Acton CLI](https://github.com/ton-blockchain/acton/releases) into `.tools/acton` (the default `ACTON_BINARY`), then request an airdrop:
 
    ```sh
-   base=https://github.com/ton-blockchain/acton/releases/download/v1.2.1
-   file=acton-aarch64-apple-darwin.tar.gz   # pick the asset for your platform
-   mkdir -p .tools/acton && curl -fsSLO "$base/$file" && curl -fsSL "$base/$file.sha256" | shasum -a 256 -c - && tar -xzf "$file" -C .tools/acton && rm "$file"
+   bash scripts/install-acton.sh   # official release, checksum pinned per platform
    npm run fund:ton
    ```
 
@@ -77,21 +75,23 @@ set -a; . .state/preprod/route.env; set +a
 export MIDNIGHT_COMMITTEE_FILE="$PWD/.state/preprod/midnight-public-committee.json"
 export TON_COMMITTEE_FILE="$PWD/.state/preprod/ton-public-committee.json"
 npm run deploy:midnight
-# Existing approved token masters: set the asset registry first.
-export BRIDGE_ASSETS_FILE="$PWD/assets.json"
-npm run deploy:ton              # validate masters and inspect address plan
-npm run deploy:ton -- --send
-npm run verify:ton
-```
-
-For an entirely new testnet environment with no existing token masters, issue two tokens using the **unmodified TON reference minter and wallet**. This uses the same bridge adapter as the existing-master path:
-
-```sh
-unset BRIDGE_ASSETS_FILE
-npm run deploy:ton -- --issue-testnet-tokens
+# A new testnet environment: issue two test tokens with the unmodified reference minter.
+npm run deploy:ton -- --issue-testnet-tokens          # inspect the address plan
 npm run deploy:ton -- --issue-testnet-tokens --send
 npm run verify:ton
+npm run reconcile:ton -- all
+npm run fund:ton                                      # second airdrop, now that the wallet is initialized
 ```
+
+**Existing token masters instead.** To bridge already-deployed reference-layout jettons, write the [asset registry](#configure-token-masters) to a file and replace the two `deploy:ton` lines above with:
+
+```sh
+export BRIDGE_ASSETS_FILE="$PWD/assets.json"   # the reviewed two-asset registry you wrote
+npm run deploy:ton              # validate masters and inspect the address plan
+npm run deploy:ton -- --send
+```
+
+The bridge does not mint these tokens: fund the sender with at least 10,000 base units of each before step 4, and run `demo:testnet -- --existing-balances` there.
 
 Use one deployment path per state directory. Token issuance is an explicit testnet setup option, not a bridge requirement. Never represent these token masters as official WHIS or USD1.
 
@@ -139,7 +139,7 @@ The future production operator must complete this sequence before a mainnet rele
 2. Verify the selected assets against the implemented reference adapter; implement a separate adapter only where their behavior differs. Independently review missing notifications, downstream bounce, issuer freeze/upgrade and rejected-transfer behavior. Rerun the full two-chain testnet suite against those exact adapter bytes. Never restore unrestricted committee recovery.
 3. Obtain specialist review of the Schnorr transcript/circuit soundness and independent contract/SDK security review. Resolve findings against the exact source and verifier hashes. The 2-of-3 committee and trusted RPC model must be explicitly accepted or replaced by a different verified design.
 4. Name three independent custodians, validate each public key out of band, configure independent trusted RPC/indexers, per-transfer/daily limits and stop files. Test signer outage, compromise, unavailable gas/DUST and disaster recovery. Fixed immutable committee rotation requires a new route and an accounted migration.
-5. Assign infrastructure ownership, funding, monitoring, reconciliation, on-call response and service duration in writing. Test the operator's durable backups and full trace finalization. The repository provides manual CLI operations; it does not imply an always-running hosted service.
+5. Assign infrastructure ownership, funding, monitoring, reconciliation, on-call response and service duration in writing. Test the operator's durable backups and full trace finalization. The repository provides CLI operations and [automated signer and relayer services](operations.md#automated-signing-and-relay); it does not imply anyone is running them.
 6. Add a separately reviewed production network configuration and release authorization to the SDK/deploy tools, with official asset allowlists and testnet issuance excluded. Pin approved compiler, proof service and network protocol versions. Generate a new domain and fresh production keys; never reuse demonstration secrets or addresses.
 7. Deploy Midnight with the reviewed immutable authority; deploy the approved TON adapters; verify every address, code hash, verifier hash, authority and cap independently. Publish the approved release manifest and user-visible asset/network labels.
 8. With explicit funding authorization, perform the smallest approved lock/claim/retire/release canary, verify recipient delivery and backing conservation, then add separately approved LP capital and raise caps gradually. Record rollback/migration instructions and signed acceptance.

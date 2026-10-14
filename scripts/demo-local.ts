@@ -37,5 +37,5 @@ try{
  verifyRedemption(snapshot,deployment.pins,request,LOCAL_ESCROWS);
  writeFileSync(statePath('local-redemption-evidence.json'),JSON.stringify(request,null,2));
  const final=ledger(snapshot.data);assertRoundTripLedger(final);assert(final.retired.member(id));
- console.log('All five circuits finalized; pool emptied and retirement accounting verified. TON leg is separately exercised in the combined sandbox test.');
+ console.log('All five circuits finalized; LP liquidity withdrawn (locked bootstrap liquidity remains) and retirement accounting verified. TON leg is separately exercised in the combined sandbox test.');
 }finally{await client.close();}

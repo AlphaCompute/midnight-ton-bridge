@@ -101,7 +101,11 @@ export circuit redeem(nonce: Bytes<32>, asset: Uint<8>, amount: Uint<64>, tonRec
 // Bootstrap shares equal WHIS units. Initial ratio is chosen by first LP.
 export circuit addLiquidity(owner: Bytes<32>, x: Uint<64>, y: Uint<64>, minShares: Uint<64>): Uint<64> {
   assert(disclose(x) > 0 && disclose(y) > 0, "zero liquidity");
-  const minted = totalShares == 0 ? x : divide(x * totalShares, reserve[0] as Uint<128>);
+  // The first deposit permanently locks 1000 shares that belong to no one, so the pool
+  // never returns to a tiny share supply whose rounding a depositor could exploit.
+  const bootstrap = totalShares == 0;
+  assert(!bootstrap || disclose(x) > 1000, "bootstrap below minimum liquidity");
+  const minted = bootstrap ? (x - 1000) as Uint<64> : divide(x * totalShares, reserve[0] as Uint<128>);
   assert(disclose(minted) > 0 && disclose(minted) >= disclose(minShares), "share slippage");
   if (totalShares > 0) {
     const requiredY = divide((x * reserve[1]) + ((reserve[0] as Uint<128>) - 1), reserve[0] as Uint<128>);
@@ -110,7 +114,7 @@ export circuit addLiquidity(owner: Bytes<32>, x: Uint<64>, y: Uint<64>, minShare
   receiveUnshielded(tokenType(tokenDomain(0), kernel.self()), disclose(x));
   receiveUnshielded(tokenType(tokenDomain(1), kernel.self()), disclose(y));
   reserve = [(reserve[0] + disclose(x)) as Uint<64>, (reserve[1] + disclose(y)) as Uint<64>];
-  totalShares = (totalShares + disclose(minted)) as Uint<64>;
+  totalShares = (totalShares + disclose(minted) + (bootstrap ? 1000 : 0)) as Uint<64>;
   const previous = shares.member(disclose(owner)) ? shares.lookup(disclose(owner)) : 0;
   shares.insert(disclose(owner), (previous + disclose(minted)) as Uint<64>);
   return disclose(minted);

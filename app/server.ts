@@ -3,8 +3,9 @@ import {readFileSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {extname,join,normalize} from 'node:path';
-import {Address} from '@ton/core';
-import {DEPOSIT_ATTACHED_TON,transferBody} from '../src/ton.js';
+import {Address,toNano as toNanoTon} from '@ton/core';
+import {DEPOSIT_ATTACHED_TON,refundBody,transferBody} from '../src/ton.js';
+import {formatMidnightRecipient} from '../src/midnight-address.js';
 import {SWAP_FEE_BPS,quoteSwap} from '../src/midnight.js';
 import {TON_FINALITY_DEPTH} from '../src/ton-network.js';
 import type {DepositReceipt} from '../src/escrow.js';
@@ -19,15 +20,21 @@ const friendly=(a:Address)=>a.toString({testOnly:true,bounceable:true,urlSafe:tr
 const hostOf=(origin:string)=>{try{return new URL(origin).host;}catch{return undefined;}};
 type Route={run:(q:URLSearchParams,body:Record<string,unknown>)=>Promise<unknown>;unthrottled?:true};
 
-export function createApp(options:{deployment:Deployment;ton:TonReader;midnight?:MidnightReader|undefined;midnightUnavailable?:string;cacheMs?:number;maxInFlight?:number}){
- const {deployment:d,ton}=options,cacheMs=options.cacheMs??10000,maxInFlight=options.maxInFlight??32;
+export function createApp(options:{deployment:Deployment;ton:TonReader;midnight?:MidnightReader|undefined;midnightUnavailable?:string;cacheMs?:number;maxInFlight?:number;allowedHosts?:string[];upstreamTimeoutMs?:number}){
+ const {deployment:d,ton}=options,cacheMs=options.cacheMs??10000,maxInFlight=options.maxInFlight??32,timeoutMs=options.upstreamTimeoutMs??20000;
+ // API requests must name a known host: a DNS-rebound page otherwise passes the same-origin
+ // check and could use this server as a proxy to the TON and Midnight providers.
+ const allowedHosts=new Set(options.allowedHosts??['127.0.0.1','localhost','[::1]']);
+ const withTimeout=<T>(p:Promise<T>)=>{let t:ReturnType<typeof setTimeout>|undefined;return Promise.race([p,new Promise<never>((_,r)=>{t=setTimeout(()=>r(new Error('upstream timeout')),timeoutMs);})]).finally(()=>clearTimeout(t));};
  const escrows=d.assets.map(a=>Address.parse(a.escrow)),attachedTon=formatUnits(DEPOSIT_ATTACHED_TON,9);
  // Every API route except config reaches the TON or Midnight RPC; cap concurrent ones so
  // a single client cannot use this server to flood those upstream endpoints.
  let inFlight=0;
  const cache=new Map<string,{at:number;value:Promise<unknown>}>();
  const cached=<T>(key:string,load:()=>Promise<T>):Promise<T>=>{const hit=cache.get(key);if(hit&&Date.now()-hit.at<cacheMs)return hit.value as Promise<T>;
-  const value=load();cache.set(key,{at:Date.now(),value});value.catch(()=>cache.delete(key));return value;};
+  const value=withTimeout(load());cache.set(key,{at:Date.now(),value});
+  // A slow failure must not evict a newer entry for the same key.
+  value.catch(()=>{if(cache.get(key)?.value===value)cache.delete(key);});return value;};
  const midnight=async()=>{if(!options.midnight)throw new HttpError(503,options.midnightUnavailable??'Midnight indexer not configured');
   try{return await cached('midnight',()=>options.midnight!.snapshot());}catch{throw new HttpError(502,'Midnight indexer unavailable');}};
  const tonStatus=async()=>{try{return await cached('ton',()=>ton.status());}catch{throw new HttpError(502,'TON testnet RPC unavailable');}};
@@ -42,29 +49,39 @@ export function createApp(options:{deployment:Deployment;ton:TonReader;midnight?
     midnight:m.status==='fulfilled'?{available:true,reserve:m.value.reserve.map(String),circulating:m.value.circulating.map(String),totalShares:String(m.value.totalShares)}:{available:false,error:(m.reason as Error).message}};}},
   'GET /api/balances':{run:async q=>{const owner=parseTonAddress(q.get('owner'));
    return {owner:friendly(owner),assets:await Promise.all(d.assets.map(async a=>{const wallet=jettonWalletOf(a,owner);
-    let balance:bigint|null;try{balance=await ton.balance(wallet);}catch{throw new HttpError(502,'TON testnet RPC unavailable');}
+    let balance:bigint|null;try{balance=await withTimeout(ton.balance(wallet));}catch{throw new HttpError(502,'TON testnet RPC unavailable');}
     return {asset:a.asset,wallet:friendly(wallet),balance:balance===null?null:String(balance)};}))};}},
   'POST /api/deposit':{run:async(_q,b)=>{
    const a=routeFor(d,b.asset),owner=parseTonAddress(b.tonAddress),units=parseUnits(b.amount,a.decimals),recipient=parseMidnightRecipient(b.midnightRecipient);
    const wallet=jettonWalletOf(a,owner),escrow=escrows[a.asset]!,warnings:string[]=[];
-   try{const s=await tonStatus(),locked=BigInt(s.assets[a.asset]!.locked);if(locked+units>BigInt(a.cap))throw new HttpError(400,`Deposit would exceed the route cap (${formatUnits(BigInt(a.cap)-locked,a.decimals)} ${a.symbol} remaining)`);}
-   catch(e){if(e instanceof HttpError&&e.status===400)throw e;warnings.push('Capacity unchecked');}
-   try{const bal=await ton.balance(wallet);if(bal===null||bal<units)throw new HttpError(400,`Insufficient ${a.symbol}: wallet holds ${formatUnits(bal??0n,a.decimals)}`);}
+   // Deposits are prepared only for a route verified on chain (pins and cap) just now.
+   let status;try{status=await tonStatus();}catch{throw new HttpError(503,'The route cannot be verified on TON right now; try again shortly');}
+   const locked=BigInt(status.assets[a.asset]!.locked);if(locked+units>BigInt(a.cap))throw new HttpError(400,`Deposit would exceed the route cap (${formatUnits(BigInt(a.cap)-locked,a.decimals)} ${a.symbol} remaining)`);
+   try{const bal=await withTimeout(ton.balance(wallet));if(bal===null||bal<units)throw new HttpError(400,`Insufficient ${a.symbol}: wallet holds ${formatUnits(bal??0n,a.decimals)}`);}
    catch(e){if(e instanceof HttpError&&e.status===400)throw e;warnings.push('Balance unchecked');}
    const queryId=randomBytes(8).readBigUInt64BE()>>1n,boc=transferBody(queryId,units,escrow,owner,recipient).toBoc();
    const payload=boc.toString('base64'),to=friendly(wallet),attached=DEPOSIT_ATTACHED_TON.toString();
    return {asset:a.asset,symbol:a.symbol,amount:formatUnits(units,a.decimals),units:String(units),from:friendly(owner),jettonWallet:to,escrow:friendly(escrow),
-    midnightRecipient:recipient.toString('hex'),queryId:String(queryId),attachedTon,payload,warnings,
+    midnightRecipient:recipient.toString('hex'),midnightRecipientAddress:formatMidnightRecipient(recipient,'preprod'),queryId:String(queryId),attachedTon,payload,warnings,
     tonConnect:{validUntil:Math.floor(Date.now()/1000)+600,network:'-3',messages:[{address:to,amount:attached,payload}]},
     deepLink:`ton://transfer/${to}?amount=${attached}&bin=${encodeURIComponent(boc.toString('base64url'))}`};}},
   'GET /api/receipt':{run:async q=>{
    const a=routeFor(d,q.get('asset')),raw=q.get('sequence')??'';if(!/^\d{1,19}$/.test(raw))throw new HttpError(400,'Sequence must be a non-negative integer');
    let receipt:DepositReceipt;
-   try{receipt=await ton.receipt(a,BigInt(raw));}catch(e){const m=(e as Error).message;
-    if(m==='deposit not found')throw new HttpError(404,`No finalized deposit #${raw} on the ${a.symbol} escrow yet`);throw new HttpError(502,`TON lookup failed: ${m}`);}
+   try{receipt=await withTimeout(ton.receipt(a,BigInt(raw)));}catch(e){const m=(e as Error).message;
+    if(m==='deposit not found')throw new HttpError(404,`No finalized deposit #${raw} on the ${a.symbol} escrow yet`);console.error(redactEndpoints(m));throw new HttpError(502,'TON lookup failed');}
    let claimed:boolean|null=null,midnightNote:string|undefined;
    try{claimed=(await midnight()).claimed(receipt.id);}catch(e){midnightNote=(e as Error).message;}
    return {...receipt,symbol:a.symbol,display:formatUnits(BigInt(receipt.amount),a.decimals),claimed,midnightNote};}},
+  // Invalid or over-cap deposits become refunds that anyone may pay out to their sender.
+  'GET /api/refunds':{run:async q=>{
+   const a=routeFor(d,q.get('asset')),owner=parseTonAddress(q.get('owner')),escrow=escrows[a.asset]!;
+   let rows;try{rows=await withTimeout(ton.refunds(a,owner));}catch{throw new HttpError(502,'TON testnet RPC unavailable');}
+   const value=toNanoTon('0.2');
+   return {asset:a.asset,symbol:a.symbol,owner:friendly(owner),refunds:rows.map(r=>{const body=refundBody(BigInt(r.id)).toBoc();
+    return {id:r.id,amount:formatUnits(BigInt(r.amount),a.decimals),units:r.amount,escrow:friendly(escrow),attachedTon:'0.2',
+     tonConnect:{validUntil:Math.floor(Date.now()/1000)+600,network:'-3',messages:[{address:friendly(escrow),amount:value.toString(),payload:body.toString('base64')}]},
+     deepLink:`ton://transfer/${friendly(escrow)}?amount=${value}&bin=${encodeURIComponent(body.toString('base64url'))}`};})};}},
   'POST /api/quote':{run:async(_q,b)=>{
    const a=routeFor(d,b.assetIn),out=d.assets[1-a.asset]!,units=parseUnits(b.amount,a.decimals);
    const slip=Number(b.slippageBps??50);if(!Number.isInteger(slip)||slip<0||slip>5000)throw new HttpError(400,'Slippage must be 0–5000 bps');
@@ -90,6 +107,7 @@ export function createApp(options:{deployment:Deployment;ton:TonReader;midnight?
   const json=(status:number,value:unknown)=>{res.writeHead(status,{'content-type':'application/json','cache-control':'no-store'});res.end(JSON.stringify(value));};
   try{
    const url=new URL(req.url??'/','http://localhost'),route=routes[`${req.method} ${url.pathname}`];
+   if(url.pathname.startsWith('/api/')){let host:string;try{host=new URL(`http://${req.headers.host??''}`).hostname;}catch{host='';}if(!allowedHosts.has(host))throw new HttpError(421,'Unknown host');}
    if(route){
     const body=req.method==='POST'?await readJson(req):{};
     if(route.unthrottled){json(200,await route.run(url.searchParams,body));return;}
@@ -119,5 +137,7 @@ if(process.argv[1]===fileURLToPath(import.meta.url)){
   catch(e){midnightUnavailable=`Midnight indexer misconfigured: ${redactEndpoints((e as Error).message)}`;console.error(midnightUnavailable);}
  }
  const port=Number(process.env.PORT??3080),host=process.env.HOST??'127.0.0.1';
- createApp({deployment,ton:tonRpcReader(deployment),midnight,midnightUnavailable}).listen(port,host,()=>console.log(`Bridge app: http://${host}:${port}`));
+ // Hostnames the browser may use for this server; extend for a proxy or a LAN name.
+ const allowedHosts=['127.0.0.1','localhost','[::1]',host,...(process.env.APP_ALLOWED_HOSTS??'').split(',').map(h=>h.trim()).filter(Boolean)];
+ createApp({deployment,ton:tonRpcReader(deployment),midnight,midnightUnavailable,allowedHosts}).listen(port,host,()=>console.log(`Bridge app: http://${host}:${port}`));
 }

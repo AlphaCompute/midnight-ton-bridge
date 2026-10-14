@@ -17,5 +17,6 @@ verifyRedemption(state,d.pins,request,LOCAL_ESCROWS);
 assert.throws(()=>verifyRedemption(state,d.pins,{...request,amount:'101'},LOCAL_ESCROWS),/differs/);
 assert.throws(()=>verifyRedemption(state,{...d.pins,maintenanceHash:'00'.repeat(32)},request,LOCAL_ESCROWS),/maintenance/);
 assert.throws(()=>verifyRedemption(state,{...d.pins,verifiers:{...d.pins.verifiers,claim:'00'.repeat(32)}},request,LOCAL_ESCROWS),/verifier/);
-writeFileSync('docs/evidence/local-proof.json',JSON.stringify({network:'isolated-local-only',address:d.address,pins:d.pins,transactions:verified,final:{circulating:data.circulating.map(String),reserve:data.reserve.map(String),totalShares:String(data.totalShares),retiredCount:String(data.retired.size())},reverseVerification:'matched retirement; altered amount, maintenance authority and verifier rejected'},null,2)+'\n');
+// --publish records this run as the repository's local evidence; a plain reproduction leaves it untouched.
+if(process.argv.includes('--publish'))writeFileSync('docs/evidence/local-proof.json',JSON.stringify({network:'isolated-local-only',address:d.address,pins:d.pins,transactions:verified,final:{circulating:data.circulating.map(String),reserve:data.reserve.map(String),totalShares:String(data.totalShares),retiredCount:String(data.retired.size())},reverseVerification:'matched retirement; altered amount, maintenance authority and verifier rejected'},null,2)+'\n');
 console.log('Six transactions independently re-read as successful; final balances and reverse observer checks passed.');

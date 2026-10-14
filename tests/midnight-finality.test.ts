@@ -17,5 +17,8 @@ test('a release is signed only for a retirement in a finalized, canonical Midnig
   await assertMidnightFinalized(url,7,'0x'+'AA'.repeat(32));
   await assert.rejects(()=>assertMidnightFinalized(url,101,'aa'.repeat(32)),/not finalized/);
   await assert.rejects(()=>assertMidnightFinalized(url,50,'bb'.repeat(32)),/canonical/);
+  // Genesis pin: the mock's block 0 hash is 0xaa..aa.
+  await assertMidnightFinalized(url,50,'aa'.repeat(32),{genesis:'aa'.repeat(32)});
+  await assert.rejects(()=>assertMidnightFinalized(url,50,'aa'.repeat(32),{genesis:'cc'.repeat(32)}),/pinned network/);
  }finally{server.close();}
 });

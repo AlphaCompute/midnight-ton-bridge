@@ -67,6 +67,15 @@
   </form>
   <p class="error" id="track-error" role="alert"></p>
   <div id="receipt" class="review" hidden><dl id="receipt-list"></dl></div>
+  <h2>Refunds</h2>
+  <p>Deposits the escrow cannot accept (over the cap, or a malformed message) are recorded as exact refunds to the sending address. Anyone can pay one out; the tokens only go back to you.</p>
+  <form id="refunds" class="inline" novalidate>
+   <label class="field">Asset<select id="refund-asset" name="asset"></select></label>
+   <label class="field">Your TON address<input id="refund-owner" name="owner" autocomplete="off"></label>
+   <button class="primary" type="submit">Find refunds</button>
+  </form>
+  <p class="error" id="refunds-error" role="alert"></p>
+  <ul id="refund-list"></ul>
  </section>
 
  <section class="card" role="tabpanel" id="p-pool" aria-labelledby="t-pool" hidden>

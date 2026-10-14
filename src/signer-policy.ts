@@ -1,11 +1,18 @@
-import {existsSync} from 'node:fs';
+import {statSync} from 'node:fs';
+import {isAbsolute} from 'node:path';
 import {openDurableDb} from './journal.js';
 export type SigningPolicy={maxTransfer:string;maxPerDay:string;stopFile:string;database:string};
 /** Reserve quota and bind an immutable payload before exposing a signature.
  * Retries of the identical payload consume no additional quota. */
 export function authorizeSignature(policy:SigningPolicy,id:string,payload:string,amount:bigint,now=Date.now()){
  if(!policy||!policy.stopFile||!policy.database)throw new Error('signer policy is required');
- if(existsSync(policy.stopFile))throw new Error('signing paused by stop file');
+ // Relative paths would follow the working directory: a different one would miss the stop
+ // file and open a fresh database, bypassing quota and conflicting-attestation refusal.
+ if(!isAbsolute(policy.stopFile)||!isAbsolute(policy.database))throw new Error('signer policy stopFile and database must be absolute paths');
+ // Fail closed: anything but a definite "no such file" (for example a permission error) pauses signing.
+ let stopped=true;
+ try{statSync(policy.stopFile);}catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')stopped=false;}
+ if(stopped)throw new Error('signing paused by stop file (present or unreadable)');
  const cap=BigInt(policy.maxTransfer),daily=BigInt(policy.maxPerDay);if(amount<=0n||cap<=0n||daily<cap||amount>cap)throw new Error('transfer exceeds signer policy');
  const db=openDurableDb(policy.database);
  try{

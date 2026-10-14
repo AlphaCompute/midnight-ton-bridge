@@ -1,6 +1,6 @@
 {
   "network": "TON-testnet",
-  "escrow": "0:fb6b8da90ed7349a8175752ee5dd4673100dbe8a601901ed68526fb91a89472d",
+  "escrow": "0:3de3799aa61e391dddc4efed85eaf1835ae531d5bc6a1aeaeafacdf513b43781",
   "amount": "50",
   "steps": [
     {
@@ -8,24 +8,24 @@
       "locked": "9900",
       "refunds": 0,
       "balance": "9900",
-      "query": "1791836118988"
+      "query": "1791936325212"
     },
     {
-      "id": "demo-unrecorded-deposit:187f95791af4f34914a08e3300ab99a72a3663b10dc834fb5b0f52063119580c",
-      "seqno": 24,
-      "bodyHash": "ce3923a7aab40ca3c85865c0f0f8201dc8d86f1441f09f97830256bfcd3ddacd",
+      "id": "demo-unrecorded-deposit:d236f62a7386382ef50fee1ce191f483226cfe3c5c812c99bc814493fe19fb89",
+      "seqno": 33,
+      "bodyHash": "1793bb42f2f1b43607467a3c10b07c3e54c4f164b662eec98253df0d529db493",
       "status": "wallet-sequence-advanced; verify destination trace"
     },
     {
       "key": "stranded",
-      "creditTx": "5b4b3bc7f45b549c005874cb3f168b3ee8b6078f5904d4a62535039f0822524a",
-      "escrowTx": "b0dc07a53d83411788c8146693a14ac70ea4781cd81b260f07c7ed3ac94f5338",
+      "creditTx": "e5aad828434b24361551f95f747795a5dc33d60abe6f065bc828d172a79044b1",
+      "escrowTx": "1e69f6a92ada8fa97b03f1c45725142d9c41439c54bbc3af72cb19accfbb3c60",
       "compute": "skipped"
     },
     {
-      "id": "demo-unrecorded-attest:5b4b3bc7f45b549c005874cb3f168b3ee8b6078f5904d4a62535039f0822524a",
-      "seqno": 25,
-      "bodyHash": "99e2cd11c5b3f009e9710ee969699bf4963b1f2223944ab7e5a76cf30eae9bbc",
+      "id": "demo-unrecorded-attest:e5aad828434b24361551f95f747795a5dc33d60abe6f065bc828d172a79044b1",
+      "seqno": 34,
+      "bodyHash": "7e4c3755a8e344c45cb437350789e4895ac062ba7a333260380f56db6cd74061",
       "status": "wallet-sequence-advanced; verify destination trace"
     },
     {
@@ -33,21 +33,21 @@
       "query": "1"
     },
     {
-      "id": "demo-unrecorded-refund:0:fb6b8da90ed7349a8175752ee5dd4673100dbe8a601901ed68526fb91a89472d:0",
-      "seqno": 26,
-      "bodyHash": "8fb88e62986cc3112fef3c9ae0901ea4ff411366e855b210d0a0eaf8e6fa3166",
+      "id": "demo-unrecorded-refund:0:3de3799aa61e391dddc4efed85eaf1835ae531d5bc6a1aeaeafacdf513b43781:0",
+      "seqno": 35,
+      "bodyHash": "b433876091a86cdec388a449b3d88156fbcb42861af396496f69d253849552f2",
       "status": "wallet-sequence-advanced; verify destination trace"
     }
   ],
   "delivery": {
-    "block": 90837086,
+    "block": 91085828,
     "queryId": "1",
     "amount": "50",
-    "from": "0:805e8fee697d7a86dff02a5765e5600ae8729431cbd753bc7f6fcba29d204ab1",
-    "to": "0:095fa1a349564ad5c152347770f380434f34c821ba727698d3e08cc6b4def471",
-    "sourceTx": "2f7bce4b8d67ed1795e297349b6b2b1e47330fd7185483dbbbf6766c025361a3",
-    "recipientTx": "b46282b7427942ccde63feec4b95343e68e2e65f7058a45db332305eba9e2317",
-    "messageHash": "a772d94f21f75da05713ddc9d45d3dfe33eab54ccf15ae1a454af9727ff9d12f"
+    "from": "0:b4914f2d4c4f8843a1b1d4be6a548047a94873b1a20b75fc2e93596f198cfdf6",
+    "to": "0:65c410fce1003e79a0171238e40ce298fc6c49379acd6ac44dda0f15d027b602",
+    "sourceTx": "9ee47642742a7fbaeaa9cc0d847f4395e9dca4edc9a3d33536ddd6d205c99886",
+    "recipientTx": "5ce861c1125ea84571a68b59eefe6139db0f159564f43fade104bbe090417b53",
+    "messageHash": "a6b283665189f83ff82695e3da004e3cbb3fb0795b2aa586c965f21b7b0f0ef7"
   },
   "after": {
     "locked": "9900",

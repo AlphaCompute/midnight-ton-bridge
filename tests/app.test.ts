@@ -23,6 +23,7 @@ function fakes(over:{balance?:bigint|null|Error;locked?:bigint;tonDown?:boolean;
   async balance(w){if(over.balance instanceof Error)throw over.balance;assert.ok(w.equals(userWallet(0))||w.equals(userWallet(1)));return over.balance===undefined?5_000_000n:over.balance;},
   async receipt(r,seq){if(seq>0n)throw new Error('deposit not found');
    return {id:depositId(r.escrow,seq),network:'ton-testnet',escrow:r.escrow,sequence:String(seq),asset:r.asset,amount:'9900',recipient:recipientHex,block:97,blockRoot:'root'};},
+  async refunds(_r,o){return o.equals(owner)?[{id:'3',amount:'2500000'}]:[];},
  };
  const midnight:MidnightReader={async snapshot(){return {reserve:[5000n,5000n],circulating:[9900n,10000n],totalShares:5000n,claimed:id=>(over.claimed??[]).includes(id)};}};
  return {ton,midnight};
@@ -87,14 +88,41 @@ test('deposit guards: balance, cap, input and degraded RPC',async()=>{
   [{},{tonAddress:'-1:'+'11'.repeat(32)},400,/basechain/],
   [{},{tonAddress:'nope'},400,/valid TON address/],
   [{},{midnightRecipient:''},400,/Midnight recipient/],
+  [{},{midnightRecipient:'00'.repeat(32)},400,/all-zero/],
   [{},{amount:'1.0000001'},400,/decimal places/],
  ];
  for(const [over,patch,status,msg] of cases){
   const s=await serve(createApp({deployment,...fakes(over)}));
   try{const r=await s.post('/api/deposit',{...deposit,...patch});assert.equal(r.status,status,JSON.stringify(patch));assert.match((await r.json()).error,msg);}finally{await s.close();}
  }
- const s=await serve(createApp({deployment,...fakes({tonDown:true,balance:new Error('rpc')})}));
- try{const d=await (await s.post('/api/deposit',deposit)).json();assert.equal(d.warnings.length,2);assert.ok(d.payload);}finally{await s.close();}
+ // A route that cannot be verified on chain right now is not offered for deposits.
+ const down=await serve(createApp({deployment,...fakes({tonDown:true})}));
+ try{const r=await down.post('/api/deposit',deposit);assert.equal(r.status,503);assert.equal((await r.json()).payload,undefined);}finally{await down.close();}
+ // A balance that cannot be read is a warning, not a refusal; the escrow refunds nothing it never received.
+ const s=await serve(createApp({deployment,...fakes({balance:new Error('rpc')})}));
+ try{const d=await (await s.post('/api/deposit',deposit)).json();assert.deepEqual(d.warnings,['Balance unchecked']);assert.ok(d.payload);assert.equal(d.midnightRecipientAddress,recipientBech);}finally{await s.close();}
+});
+
+test('refunds owed to a sender are listed with a ready-to-send refund message',async()=>{
+ const s=await serve(createApp({deployment,...fakes()}));
+ try{
+  const d=await (await s.get(`/api/refunds?asset=0&owner=${encodeURIComponent(owner.toString({testOnly:true}))}`)).json();
+  assert.equal(d.refunds.length,1);assert.equal(d.refunds[0].id,'3');assert.equal(d.refunds[0].amount,'2.5');
+  const m=d.refunds[0].tonConnect.messages[0];assert.ok(Address.parse(m.address).equals(Address.parse(deployment.assets[0].escrow)));
+  const body=Cell.fromBase64(m.payload).beginParse();assert.equal(body.loadUint(32),0x42524703);assert.equal(body.loadUintBig(64),3n);
+  assert.equal((await s.get('/api/refunds?asset=0&owner=nope')).status,400);
+ }finally{await s.close();}
+});
+
+test('API requests must name a known host (DNS rebinding)',async()=>{
+ const s=await serve(createApp({deployment,...fakes()}));
+ try{
+  const port=new URL(s.base).port;
+  assert.equal((await fetch(`http://localhost:${port}/api/config`)).status,200);
+  const {request}=await import('node:http');
+  const status=await new Promise<number>((resolve,reject)=>request({host:'127.0.0.1',port,path:'/api/config',headers:{host:`evil.example:${port}`}},r=>{r.resume();resolve(r.statusCode!);}).on('error',reject).end());
+  assert.equal(status,421);
+ }finally{await s.close();}
 });
 
 test('tracks receipts and claim status',async()=>{

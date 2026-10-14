@@ -19,4 +19,9 @@ test('signer quota is durable, idempotent, rejects equivocation and honors stop 
  authorizeSignature(policy,'c','payload-c',100n,NEXT_DAY);authorizeSignature(policy,'a','payload-a',100n,NEXT_DAY);
  assert.throws(()=>authorizeSignature(policy,'a','conflict',1n,NEXT_DAY),/conflicting/);
  writeFileSync(policy.stopFile,'stop');assert.throws(()=>authorizeSignature(policy,'a','payload-a',100n,DAY),/paused/);
+ // Relative paths would depend on the working directory, so they are refused.
+ assert.throws(()=>authorizeSignature({...policy,stopFile:'STOP'},'d','payload-d',1n,DAY),/absolute/);
+ assert.throws(()=>authorizeSignature({...policy,database:'sign.sqlite'},'d','payload-d',1n,DAY),/absolute/);
+ // A stop file that cannot be checked (here, a path through a regular file) pauses signing.
+ assert.throws(()=>authorizeSignature({...policy,stopFile:join(policy.stopFile,'nested')},'d','payload-d',1n,DAY),/paused/);
 }));

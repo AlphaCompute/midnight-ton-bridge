@@ -9,8 +9,8 @@ const plain=(units,dec)=>{const s=String(units).padStart(dec+1,'0');if(!dec)retu
 const fmt=(units,dec)=>plain(units,dec).replace(/^\d+/,w=>w.replace(/\B(?=(\d{3})+(?!\d))/g,','));
 const short=a=>a.length>20?`${a.slice(0,6)}…${a.slice(-4)}`:a;
 const toast=msg=>{const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),1800);};
-// Keys were un-namespaced before; read them as a fallback so saved addresses survive.
-const store={get:k=>{try{return localStorage.getItem('bridge.'+k)??localStorage.getItem(k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem('bridge.'+k,v)}catch{}}};
+// Namespaced only: a generic key could be written by another app on the same origin.
+const store={get:k=>{try{return localStorage.getItem('bridge.'+k)}catch{return null}},set:(k,v)=>{try{localStorage.setItem('bridge.'+k,v)}catch{}}};
 
 // Tabs
 const tabs=[...document.querySelectorAll('[role=tab]')];
@@ -39,7 +39,8 @@ $('#deposit').addEventListener('submit',async e=>{
   prepared=d;store.set('ton',$('#ton').value.trim());store.set('recipient',$('#recipient').value.trim());
   rows($('#review-list'),[
    ['Amount',`${d.amount} ${d.symbol}`],
-   ['To',short(d.midnightRecipient),true],
+   // The full address, so the user can compare it with their Midnight wallet before signing.
+   ['To',d.midnightRecipientAddress,true],
    ['Gas',`${d.attachedTon} TON`],
   ]);
   $('#review-warn').replaceChildren(...d.warnings.map(w=>el('li',{},w)));
@@ -57,11 +58,23 @@ $('#track').addEventListener('submit',async e=>{
  e.preventDefault();const err=$('#track-error');err.textContent='';$('#receipt').hidden=true;
  try{
   const r=await api(`/api/receipt?asset=${$('#track-asset').value}&sequence=${encodeURIComponent($('#track-seq').value.trim())}`);
-  const claim=r.claimed===true?el('span',{class:'badge good'},'Claimed'):r.claimed===false?el('span',{class:'badge wait'},'Pending'):el('span',{class:'badge na',title:r.midnightNote??''},'Locked');
+  // Claims are submitted by the committee relayer; the indexer's latest state is not finality.
+  const claim=r.claimed===true?el('span',{class:'badge good'},'Claimed'):r.claimed===false?el('span',{class:'badge wait',title:'Locked on TON; awaiting a committee claim on Midnight'},'Awaiting claim'):el('span',{class:'badge na',title:r.midnightNote??''},'Locked');
   rows($('#receipt-list'),[
    ['Status',claim],['Amount',`${r.display} ${r.symbol}`],['To',short(r.recipient),true],['Receipt',short(r.id),true],
   ]);
   $('#receipt').hidden=false;
+ }catch(x){err.textContent=x.message;}
+});
+
+// Refunds: invalid or over-cap deposits are recorded as exact refunds to their sender.
+$('#refunds').addEventListener('submit',async e=>{
+ e.preventDefault();const err=$('#refunds-error'),list=$('#refund-list');err.textContent='';list.replaceChildren();
+ try{
+  const r=await api(`/api/refunds?asset=${$('#refund-asset').value}&owner=${encodeURIComponent($('#refund-owner').value.trim())}`);
+  if(!r.refunds.length){list.append(el('li',{},`No unpaid ${r.symbol} refunds for this address.`));return;}
+  list.append(...r.refunds.map(f=>{const a=el('a',{class:'primary',href:f.deepLink},'Pay out refund');
+   return el('li',{},`Refund #${f.id}: ${f.amount} ${r.symbol} (attach ${f.attachedTon} TON) `,a);}));
  }catch(x){err.textContent=x.message;}
 });
 
@@ -101,8 +114,8 @@ const refresh=async()=>{try{status=await api('/api/status');}catch(x){status={to
 (async()=>{
  config=await api('/api/config');
  const opts=()=>config.assets.map(a=>el('option',{value:a.asset},a.symbol));
- for(const s of ['#asset','#track-asset','#q-asset'])$(s).replaceChildren(...opts());
- $('#ton').value=store.get('ton')??'';$('#recipient').value=store.get('recipient')??'';
+ for(const s of ['#asset','#track-asset','#refund-asset','#q-asset'])$(s).replaceChildren(...opts());
+ $('#ton').value=store.get('ton')??'';$('#refund-owner').value=store.get('ton')??'';$('#recipient').value=store.get('recipient')??'';
  const initial=tabs.find(t=>t.id==='t-'+location.hash.slice(1));if(initial)select(initial);
  route();poolStats();await refresh();balance();setInterval(refresh,30000);
 })().catch(x=>{$('#deposit-error').textContent=`${x.message}`;});

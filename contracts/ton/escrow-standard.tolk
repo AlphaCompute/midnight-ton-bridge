@@ -52,7 +52,8 @@ fun onInternalMessage(in: InMessage) {
   if (op == 0x7362d09c) {
       val msg = lazy Deposit.fromSlice(in.body);
       assert(in.senderAddress == wallet(c)) throw 401;
-      assert(msg.amount > 0 && msg.from.getWorkchain() == 0) throw 402;
+      // Any authenticated owner may deposit; masterchain owners hold basechain jetton wallets.
+      assert(msg.amount > 0) throw 402;
       var payload = msg.payload;
       // The cap is a uint64, so this also routes amounts above the deposit ledger to a refund.
       var valid = s.locked + msg.amount <= c.cap;
@@ -119,6 +120,8 @@ fun onInternalMessage(in: InMessage) {
       val msg = lazy Release.fromSlice(body);
       assert(in.valueCoins >= ton("0.15")) throw 403;
       assert(msg.recipient.getWorkchain() == 0) throw 411;
+      // Paying the escrow or its own wallet would turn backing into a self-refund loop.
+      assert(msg.recipient != contract.getAddress() && msg.recipient != wallet(c)) throw 412;
       assert(msg.a < msg.b && msg.b < 3) throw 404;
       assert(msg.amount > 0 && s.locked >= msg.amount) throw 405;
       assert(!s.releases.exists(msg.receipt)) throw 406;

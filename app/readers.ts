@@ -1,18 +1,21 @@
 import {readFileSync} from 'node:fs';
 import {Address,Cell} from '@ton/core';
 import {referenceWallet,validateAssets,type JettonAsset} from '../src/jettons.js';
-import {observeTonDeposit,type DepositReceipt} from '../src/escrow.js';
+import {observeTonDeposit,verifyEscrowPins,type DepositReceipt} from '../src/escrow.js';
 import {TON_FINALITY_DEPTH,finalizedBlock,tonClient} from '../src/ton-network.js';
 
 /** Public route description. Holds no keys; safe to serve to browsers. */
 export type RouteAsset=JettonAsset&{escrow:string;codeHash:string;configHash:string};
 export type Deployment={network:string;domain:string;midnight:string;assets:[RouteAsset,RouteAsset]};
 export type TonStatus={block:number;assets:{asset:0|1;locked:string}[]};
+export type Refund={id:string;amount:string};
 export interface TonReader {
  status():Promise<TonStatus>;
  /** Jetton balance of a wallet, or null when the wallet is not deployed. */
  balance(wallet:Address):Promise<bigint|null>;
  receipt(route:RouteAsset,sequence:bigint):Promise<DepositReceipt>;
+ /** Unpaid refund records whose recipient is `owner` (most recent first, bounded). */
+ refunds(route:RouteAsset,owner:Address):Promise<Refund[]>;
 }
 export type MidnightSnapshot={reserve:[bigint,bigint];circulating:[bigint,bigint];totalShares:bigint;claimed:(id:string)=>boolean};
 export interface MidnightReader {snapshot():Promise<MidnightSnapshot>}
@@ -34,10 +37,19 @@ export function tonRpcReader(deployment:Deployment,endpoint?:string):TonReader{
  const client=tonClient(endpoint?{endpoint,timeout:15000}:{timeout:15000}),escrows=deployment.assets.map(r=>Address.parse(r.escrow));
  const int=async(block:number,a:Address,m:string)=>{const r=await client.runMethod(block,a,m);if(r.exitCode!==0)throw new Error(`${m} failed`);return r.reader.readBigNumber();};
  return {
+  // Every status read re-checks the escrows' pinned code, configuration and cap, so a
+  // retired or substituted route stops being offered for deposits.
   async status(){const {block}=await finalizedBlock(client);
-   return {block,assets:await Promise.all(deployment.assets.map(async(r,i)=>({asset:r.asset,locked:String(await int(block,escrows[i]!,'locked'))})))};},
+   return {block,assets:await Promise.all(deployment.assets.map(async(r,i)=>{
+    const {cap}=await verifyEscrowPins(client,block,{escrow:r.escrow,codeHash:r.codeHash,configHash:r.configHash});
+    if(String(cap)!==r.cap)throw new Error('escrow cap differs from the route');
+    return {asset:r.asset,locked:String(await int(block,escrows[i]!,'locked'))};}))};},
   async balance(wallet){const {block}=await finalizedBlock(client),a=await client.getAccount(block,wallet);
    if(a.account.state.type!=='active')return null;return int(block,wallet,'get_wallet_data');},
+  async refunds(r,owner){const {block}=await finalizedBlock(client),escrow=Address.parse(r.escrow),count=await int(block,escrow,'refundCount'),out=[];
+   for(let id=count-1n;id>=0n&&id>=count-200n;id--){const res=await client.runMethod(block,escrow,'refund',[{type:'int',value:id}]);if(res.exitCode!==0)continue;
+    const s=res.reader.readCell().beginParse(),amount=s.loadCoins();if(s.loadAddress().equals(owner))out.push({id:String(id),amount:String(amount)});}
+   return out;},
   receipt:(r,sequence)=>observeTonDeposit(client,{escrow:r.escrow,asset:r.asset,codeHash:r.codeHash,configHash:r.configHash,confirmationDepth:TON_FINALITY_DEPTH},sequence),
  };
 }

@@ -1,14 +1,14 @@
 {
   "network": "TON-testnet/Midnight-preprod",
-  "domain": "187f95791af4f34914a08e3300ab99a72a3663b10dc834fb5b0f52063119580c",
-  "midnight": "cbe61af794174a3ca7c2f5641f0481b2e40b0b0d8db66c874776fd0f6f92f51d",
+  "domain": "d236f62a7386382ef50fee1ce191f483226cfe3c5c812c99bc814493fe19fb89",
+  "midnight": "13a6ceac2964288f51711763d6d9ccb574040675e80a58c21505c7cb5c445c86",
   "pins": {
-    "domain": "187f95791af4f34914a08e3300ab99a72a3663b10dc834fb5b0f52063119580c",
+    "domain": "d236f62a7386382ef50fee1ce191f483226cfe3c5c812c99bc814493fe19fb89",
     "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",
     "verifiers": {
       "claim": "1daa0a2eecdbbce0fbd3eaff08fca3e13c54fd8bbe5bb40a3d4470397a609abd",
       "redeem": "598af0d7ad4a0fc6a3cc8313b55858d026de453826eaafb2155d7595e4eab4d6",
-      "addLiquidity": "daed71d2afcd19d6ffd134467605b7571c0381f9e34c4dd8565f53f70e770db8",
+      "addLiquidity": "d6c211f21d775234e98f8c3154742dbe2064f66ffde08d9773abf22e897da160",
       "swap": "16c087e3565666f6bb480a995e3e7a20284f61e732b0abb7edd4ccf34a0194cd",
       "removeLiquidity": "59646edfb8b08f0f8477400d4b24d9719803ba70a748fc823b803f3a6cc34129"
     }
@@ -18,79 +18,79 @@
       "asset": 0,
       "symbol": "BRIDGE-0",
       "decimals": 6,
-      "master": "0:3307d25e9e6950e51ad6e0ca5935ec7fff4a5562e9e4811ac585bd0ebde23d57",
+      "master": "0:6ae0fc2824564b06e5d68816a3249409e404ae298309716ba2038b6700ba7ff7",
       "masterCodeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
       "walletCodeBoc": "te6cckECEgEAAzQAART/APSkE/S88sgLAQIBYgIRAgLMAwYCAdQEBQDDCDHAJJfBOAB0NMDAXGwlRNfA/AL4PpA+kAx+gAxcdch+gAx+gAwc6m0AALTH4IQD4p+pVIgupUxNFnwCOCCEBeNRRlSILqWMUREA/AJ4DWCEFlfB7y6k1nwCuBfBIQP8vCAAET6RDBwuvLhTYAIBSAcOAgEgCAoB8QD0z/6APpAIfAB7UTQ+gD6QPpA1DBRNqFSKscF8uLBKML/8uLCVDRCcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMkg+QBwdMjLAsoHy//J0AT6QPQEMfoAINdJwgDy4sR3gBjIywVQCM8WcPoCF8trE8yAJAK6CEBeNRRnIyx8Zyz9QB/oCIs8WUAbPFiX6AlADzxbJUAXMI5FykXHiUAioE6CCCOThwKoAggiYloCgoBS88uLFBMmAQPsAECPIUAT6AljPFgHPFszJ7VQD9ztRND6APpA+kDUMAjTP/oAUVGgBfpA+kBTW8cFVHNtcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMn5AHB0yMsCygfL/8nQUA3HBRyx8uLDCvoAUaihggiYloCCCJiWgBK2CKGCCOThwKAYoSfjDyXXCwHDACOALDA0AcFJ5oBihghBzYtCcyMsfUjDLP1j6AlAHzxZQB88WyXGAEMjLBSTPFlAG+gIVy2oUzMlx+wAQJBAjAA4QSRA4N18EAHbCALCOIYIQ1TJ223CAEMjLBVAIzxZQBPoCFstqEssfEss/yXL7AJM1bCHiA8hQBPoCWM8WAc8WzMntVAIBIA8QANs7UTQ+gD6QPpA1DAH0z/6APpAMFFRoVJJxwXy4sEnwv/y4sKCCOThwKoAFqAWvPLiw4IQe92X3sjLHxXLP1AD+gIizxYBzxbJcYAYyMsFJM8WcPoCy2rMyYBA+wBAE8hQBPoCWM8WAc8WzMntVIACDIAg1yHtRND6APpA+kDUMATTH4IQF41FGVIguoIQe92X3hO6ErHy4sXTPzH6ADAToFAjyFAE+gJYzxYBzxbMye1UgABug9gXaiaH0AfSB9IGoYfCn2Es=",
       "walletCodeHash": "a760d629d5343e76d045017d9dc216fc8a307a8377815feb2b0a5c490e733486",
       "cap": "1000000000000",
       "adapter": "tep74-reference",
-      "escrow": "0:fb6b8da90ed7349a8175752ee5dd4673100dbe8a601901ed68526fb91a89472d",
-      "codeHash": "b04e0069d7f19de60359a38d39b3ea010dee24a9fb232df3c392bf4cb602ed35",
-      "configHash": "566472a3ab9cb7f378a2618ccdd10756c4195969ad1292d707fe7f1446c138af"
+      "escrow": "0:3de3799aa61e391dddc4efed85eaf1835ae531d5bc6a1aeaeafacdf513b43781",
+      "codeHash": "de4346b329f991e4a4ac3d0ac57e53d2c5d4f7cf3acf6b53574c47317a3267c3",
+      "configHash": "661f62f862b1fdac6a79f10fc8db040583bf4685fb20e5edb2942fde8bd8772d"
     },
     {
       "asset": 1,
       "symbol": "BRIDGE-1",
       "decimals": 6,
-      "master": "0:17077a7c87f0459fbabe62bbcdbbe3a14149f8c695a72f9d44c5d7420fb33269",
+      "master": "0:221e4a5ecd5631c355c399c9908913183e4ffd9a6f177e1e63250687ae445866",
       "masterCodeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
       "walletCodeBoc": "te6cckECEgEAAzQAART/APSkE/S88sgLAQIBYgIRAgLMAwYCAdQEBQDDCDHAJJfBOAB0NMDAXGwlRNfA/AL4PpA+kAx+gAxcdch+gAx+gAwc6m0AALTH4IQD4p+pVIgupUxNFnwCOCCEBeNRRlSILqWMUREA/AJ4DWCEFlfB7y6k1nwCuBfBIQP8vCAAET6RDBwuvLhTYAIBSAcOAgEgCAoB8QD0z/6APpAIfAB7UTQ+gD6QPpA1DBRNqFSKscF8uLBKML/8uLCVDRCcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMkg+QBwdMjLAsoHy//J0AT6QPQEMfoAINdJwgDy4sR3gBjIywVQCM8WcPoCF8trE8yAJAK6CEBeNRRnIyx8Zyz9QB/oCIs8WUAbPFiX6AlADzxbJUAXMI5FykXHiUAioE6CCCOThwKoAggiYloCgoBS88uLFBMmAQPsAECPIUAT6AljPFgHPFszJ7VQD9ztRND6APpA+kDUMAjTP/oAUVGgBfpA+kBTW8cFVHNtcFQgE1QUA8hQBPoCWM8WAc8WzMkiyMsBEvQA9ADLAMn5AHB0yMsCygfL/8nQUA3HBRyx8uLDCvoAUaihggiYloCCCJiWgBK2CKGCCOThwKAYoSfjDyXXCwHDACOALDA0AcFJ5oBihghBzYtCcyMsfUjDLP1j6AlAHzxZQB88WyXGAEMjLBSTPFlAG+gIVy2oUzMlx+wAQJBAjAA4QSRA4N18EAHbCALCOIYIQ1TJ223CAEMjLBVAIzxZQBPoCFstqEssfEss/yXL7AJM1bCHiA8hQBPoCWM8WAc8WzMntVAIBIA8QANs7UTQ+gD6QPpA1DAH0z/6APpAMFFRoVJJxwXy4sEnwv/y4sKCCOThwKoAFqAWvPLiw4IQe92X3sjLHxXLP1AD+gIizxYBzxbJcYAYyMsFJM8WcPoCy2rMyYBA+wBAE8hQBPoCWM8WAc8WzMntVIACDIAg1yHtRND6APpA+kDUMATTH4IQF41FGVIguoIQe92X3hO6ErHy4sXTPzH6ADAToFAjyFAE+gJYzxYBzxbMye1UgABug9gXaiaH0AfSB9IGoYfCn2Es=",
       "walletCodeHash": "a760d629d5343e76d045017d9dc216fc8a307a8377815feb2b0a5c490e733486",
       "cap": "1000000000000",
       "adapter": "tep74-reference",
-      "escrow": "0:48d76f3d476e5f9ad955d88ddd7ea5aa0c361df744354a5bb836457d04c9e28f",
-      "codeHash": "b04e0069d7f19de60359a38d39b3ea010dee24a9fb232df3c392bf4cb602ed35",
-      "configHash": "b758f459f785ceb824f20d6d68403105052f318a5e3668492693e5e4e7f4cfd7"
+      "escrow": "0:57d6dbdf45224f15ca2c55c1bd3780a8f790f778e028b986d7f08a2f619b49e5",
+      "codeHash": "de4346b329f991e4a4ac3d0ac57e53d2c5d4f7cf3acf6b53574c47317a3267c3",
+      "configHash": "5aa7f3f28e97129e557ada1e4b5d674ecab6f689f1bd93cfcf32f7828925f76f"
     }
   ],
   "tonVerification": {
     "network": "ton-testnet",
     "block": {
-      "seqno": 90835688,
+      "seqno": 91084066,
       "shard": "-9223372036854775808",
       "workchain": -1,
-      "fileHash": "yfmIyT0pB4HjV994OoWWrwPphK3+TIYS1mHDDtjnQuw=",
-      "rootHash": "AHE0G/bWBsztjsRR0cUPtJmhTiz+/kkVtJNlaaGFD1M="
+      "fileHash": "p7X7yl1bWbLFASRTLENaQhSdOwORUsuHD2U6fQTSzvM=",
+      "rootHash": "IzPqHbDHwfcY+4IRYZUnj++4sJn0eNo7JPV66fV+CJM="
     },
     "results": [
       {
         "asset": 0,
         "role": "minter",
-        "address": "0:3307d25e9e6950e51ad6e0ca5935ec7fff4a5562e9e4811ac585bd0ebde23d57",
+        "address": "0:6ae0fc2824564b06e5d68816a3249409e404ae298309716ba2038b6700ba7ff7",
         "codeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
         "last": {
-          "lt": "102617905000003",
-          "hash": "lBgEsUku351vL0uGdDETwpF25EBGTn7hl6g+e9s5a+A="
+          "lt": "102841266000011",
+          "hash": "BCMU0J3WzD0suSH6pqG7q8gP/LsqXoeIPHtwAQNq/Xw="
         }
       },
       {
         "asset": 0,
         "role": "escrow",
-        "address": "0:fb6b8da90ed7349a8175752ee5dd4673100dbe8a601901ed68526fb91a89472d",
-        "codeHash": "b04e0069d7f19de60359a38d39b3ea010dee24a9fb232df3c392bf4cb602ed35",
+        "address": "0:3de3799aa61e391dddc4efed85eaf1835ae531d5bc6a1aeaeafacdf513b43781",
+        "codeHash": "de4346b329f991e4a4ac3d0ac57e53d2c5d4f7cf3acf6b53574c47317a3267c3",
         "last": {
-          "lt": "102617905000005",
-          "hash": "QkOBX53slYG7j4iO8uplWPivCI3XgDzQBEOuzMWJg5w="
+          "lt": "102841266000013",
+          "hash": "7QuxLNgDShewX/73bt01JF6/ZUdRon9gdACBMAuk/5w="
         }
       },
       {
         "asset": 1,
         "role": "minter",
-        "address": "0:17077a7c87f0459fbabe62bbcdbbe3a14149f8c695a72f9d44c5d7420fb33269",
+        "address": "0:221e4a5ecd5631c355c399c9908913183e4ffd9a6f177e1e63250687ae445866",
         "codeHash": "f95ba0330b38cdf3459b1e811e5fc6fa6cfee566d7b764455c0468140365a737",
         "last": {
-          "lt": "102617905000004",
-          "hash": "ecujgK25IDbloVRcpqrPiGxsfLRkr/LFfksnU/+in9w="
+          "lt": "102841266000014",
+          "hash": "LXBK2A3fs4IooaoqOc/6CKGZf8wvrpHhhsi0+teK0hA="
         }
       },
       {
         "asset": 1,
         "role": "escrow",
-        "address": "0:48d76f3d476e5f9ad955d88ddd7ea5aa0c361df744354a5bb836457d04c9e28f",
-        "codeHash": "b04e0069d7f19de60359a38d39b3ea010dee24a9fb232df3c392bf4cb602ed35",
+        "address": "0:57d6dbdf45224f15ca2c55c1bd3780a8f790f778e028b986d7f08a2f619b49e5",
+        "codeHash": "de4346b329f991e4a4ac3d0ac57e53d2c5d4f7cf3acf6b53574c47317a3267c3",
         "last": {
-          "lt": "102617905000006",
-          "hash": "BVdWlV10U4FzUfHUp6TGNYof8h0F1NMA423k+wZlpJE="
+          "lt": "102841266000012",
+          "hash": "Vtq482CopONoSmJmnbtGCV6wIkfYHBDpZfSoyIUcpqU="
         }
       }
     ]

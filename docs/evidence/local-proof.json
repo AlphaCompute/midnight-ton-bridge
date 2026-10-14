@@ -1,13 +1,13 @@
 {
   "network": "isolated-local-only",
-  "address": "b7623e4c5b598b03a3615469b2259ef20dfb92b65259cd3eda3977a17f56458a",
+  "address": "f951ba5c5674ff26f0e9effc33eac71a7e6831ee30d54b68370dfbd3387cf664",
   "pins": {
-    "domain": "8677ed4ed7506c6f54e9b673e1392171ae116262361e07788d60545ff99aadf6",
+    "domain": "347adb54fc7d0a6f6319548a57d92d83799da117f650568a8d50258a955e6b86",
     "maintenanceHash": "8de9ccb76e49bbb22e454f4e819fda52dbfaa07cef1d346114c923d2f43e6b4b",
     "verifiers": {
       "claim": "1daa0a2eecdbbce0fbd3eaff08fca3e13c54fd8bbe5bb40a3d4470397a609abd",
       "redeem": "598af0d7ad4a0fc6a3cc8313b55858d026de453826eaafb2155d7595e4eab4d6",
-      "addLiquidity": "daed71d2afcd19d6ffd134467605b7571c0381f9e34c4dd8565f53f70e770db8",
+      "addLiquidity": "d6c211f21d775234e98f8c3154742dbe2064f66ffde08d9773abf22e897da160",
       "swap": "16c087e3565666f6bb480a995e3e7a20284f61e732b0abb7edd4ccf34a0194cd",
       "removeLiquidity": "59646edfb8b08f0f8477400d4b24d9719803ba70a748fc823b803f3a6cc34129"
     }
@@ -15,45 +15,45 @@
   "transactions": [
     {
       "circuit": "claim",
-      "txId": "00981a3f7c1c5a2c057dac252057fcc7a30bb1a15965dcdd81501e7b7a1375dad9",
-      "blockHeight": 15,
+      "txId": "00ac57584e03de06c254fdf443c542094121745fecbdf3a28154cdddafc3c73c0b",
+      "blockHeight": 40,
       "status": "SucceedEntirely",
-      "blockHash": "08b126d37f7848bf6cd61a94b96eb5d3e324ee5eabe9978370041102a2f78665"
+      "blockHash": "211d48592072c0f2559418c081c510a6e80d53eee4adfabae1cf76eab811786a"
     },
     {
       "circuit": "claim",
-      "txId": "002cca0a08f1d5ab85870ae1886118c91a1741bd1bc6a307ec669734b1923d75d4",
-      "blockHeight": 22,
+      "txId": "0084f39477425c760b92772a0df7b2d0ba60d575b88ddcea628db64f87753a97a8",
+      "blockHeight": 57,
       "status": "SucceedEntirely",
-      "blockHash": "d124c3f23bc465c1d9540784e2dd46be5c16e463f55d0ebe68253b68d1c01cc5"
+      "blockHash": "9da5977402c8d0eda235dcf3e205aec0f3929ab6ecaf311a2d992b0693aff7e4"
     },
     {
       "circuit": "addLiquidity",
-      "txId": "009af6bab5a445feb8acf41ea81b9d5c886c87268adca658d3060129692ec17abe",
-      "blockHeight": 26,
+      "txId": "00c78233725b120a6ebc1c724aa8fab84ffc0ff10694d77f3a9b213c294b98e656",
+      "blockHeight": 68,
       "status": "SucceedEntirely",
-      "blockHash": "6cea8c92e217a5a4f7b3c01c6455d6c051bb55e3c642861e54c6ee516c000c3b"
+      "blockHash": "972c6d8badbf9040a869d5eab0be74c48750035d52fd0395b15c961e408e2823"
     },
     {
       "circuit": "swap",
-      "txId": "009abacbc26c37e7c731d107c887281c8c0841d215c2576e8a4647583bef672ce4",
-      "blockHeight": 31,
+      "txId": "007284061fd21d90d62640224e500acc3a24e5193e4bf59effcb5481302f980ac8",
+      "blockHeight": 78,
       "status": "SucceedEntirely",
-      "blockHash": "e89be92fffec8e0ed9601eb51199ed76687080a8079ff516f3c44aaf1e0029db"
+      "blockHash": "e4666e96631cb36d64e7a4bf913eff713a9946bcdac9142d76c0516a2d51d523"
     },
     {
       "circuit": "removeLiquidity",
-      "txId": "0076e0503f0abb75c33b8d817547299f2683223fab9add197da2f8a278d8d04334",
-      "blockHeight": 36,
+      "txId": "00e3b7ef66bab2cb2fa15d712a175e4eafb54c1d08ebda1557b33eb9cfc0a87c85",
+      "blockHeight": 88,
       "status": "SucceedEntirely",
-      "blockHash": "4f440704ad53637abc79e3cea4f73e8d4fbf1d7405250c4bc26dbe6f70d527e5"
+      "blockHash": "98223a7528cdaeee4c4a398dc503cf367a10662d174a95e42e4dde255ae9527d"
     },
     {
       "circuit": "redeem",
-      "txId": "00409968c3e2555d72cdf644d9eaa684bce04631019997b9002fa0a136473792d5",
-      "blockHeight": 41,
+      "txId": "006dd5b077572eb30ae3d060a375c713352392845734a5e8b5277bdd396ae9e8b4",
+      "blockHeight": 104,
       "status": "SucceedEntirely",
-      "blockHash": "d8a949b8fdc6c1db789ff36aec1437abdd755b99fa9f1924e641279214e02be2"
+      "blockHash": "fae356364b2299189dd7a742610ee77245a2c57f2151d0d274274f5b04d4edcc"
     }
   ],
   "final": {
@@ -62,10 +62,10 @@
       "10000"
     ],
     "reserve": [
-      "0",
-      "0"
+      "1020",
+      "981"
     ],
-    "totalShares": "0",
+    "totalShares": "1000",
     "retiredCount": "1"
   },
   "reverseVerification": "matched retirement; altered amount, maintenance authority and verifier rejected"

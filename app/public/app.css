@@ -24,6 +24,9 @@ main{width:100%;max-width:460px;margin:clamp(16px,8vh,72px) auto 64px;padding:0 
 .card{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:clamp(20px,5vw,32px)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 h2{font-size:16px;margin:0 0 12px}
+/* A heading that starts a second section inside a card. */
+.card>h2:not(:first-child){margin-top:28px;padding-top:20px;border-top:1px solid var(--line)}
+#refund-list{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:10px}
 .leg{background:var(--sunk);border-radius:14px;padding:18px}
 .leg-head{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:8px}
 .leg-label{font-weight:550}

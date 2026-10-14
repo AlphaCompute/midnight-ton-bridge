@@ -1,0 +1,29 @@
+[Unit]
+Description=Midnight TON bridge relayer (submits committee quorums)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bridge
+Group=bridge
+WorkingDirectory=/opt/midnight-ton-bridge
+EnvironmentFile=/etc/midnight-ton-bridge/relayer.env
+ExecStart=/usr/bin/node /opt/midnight-ton-bridge/dist/scripts/watch.js relayer /etc/midnight-ton-bridge/relayer.json
+# A crash can leave a send ambiguous. Restarting is safe: the journals refuse new sends
+# until the operator reconciles, and the relayer logs that refusal.
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# Route state (wallets, journals, locks) and read access to the mailbox.
+ReadWritePaths=/var/lib/bridge
+ReadOnlyPaths=/srv/bridge-mailbox
+Environment=BRIDGE_LOCK_DIR=/var/lib/bridge
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

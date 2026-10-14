@@ -8,4 +8,4 @@ To use it outside this checkout, copy the folder and install the SDK tarball wit
 
 Saving a note returns a SHA-256 commitment and its random opening; keep the opening to later prove which text the commitment binds. Notes are cleared on restart.
 
-A production app must serve over HTTPS, authenticate users on its backend, connect a TON wallet with TON Connect, and send the prepared payload to the sender's verified jetton wallet for the asset. The payload already encodes the escrow destination, amount and Midnight recipient; never send it directly to the escrow contract.
+A production app must serve over HTTPS, authenticate users on its backend, connect a TON wallet with TON Connect, and send the prepared payload to the `sendTo` jetton wallet it returns, with the stated TON attached. The payload already encodes the escrow destination, amount and Midnight recipient; never send it directly to the escrow contract.

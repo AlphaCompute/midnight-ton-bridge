@@ -4,7 +4,7 @@ import type {Journal} from '../../src/journal.js';
 /** Resumable demonstration steps backed by a saved evidence file. A step is done once its
  * evidence is saved; on resume, finished steps are skipped and their recorded results
  * reused, so nothing that already executed is sent again. */
-export type Step={key?:string;id?:string;circuit?:string;deposit?:{asset:number}}&Record<string,unknown>;
+type Step={key?:string;id?:string;circuit?:string;deposit?:{asset:number}}&Record<string,unknown>;
 export function evidenceSteps(evidence:{steps:Step[]},save:()=>void,tonJournal:Journal,send:(id:string,messages:MessageRelaxed[])=>Promise<Record<string,unknown>>){
  const keyOf=(step:Step,seen:Map<string,number>)=>{
   if(step.key)return step.key;

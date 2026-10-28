@@ -1,0 +1,12 @@
+.git
+node_modules
+.tools
+build
+dist
+.state
+.env
+.env.*
+infra
+tmp
+output
+coverage
